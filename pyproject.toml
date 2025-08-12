@@ -1,0 +1,27 @@
+[project]
+name = "sparky"
+version = "0.0.1"
+description = "🤖 Comprehensive Go2 Robot Control Package"
+authors = [
+    {name = "Ranga Reddy Nukala",email = "itsmerr17@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "go2-webrtc-connect (>=0.2.0,<0.3.0)",
+    "typer[all] (>=0.16.0,<0.17.0)",
+    "rich (>=14.1.0,<15.0.0)"
+]
+
+[project.scripts]
+sparky = "sparky.cli:app"
+
+[tool.poetry]
+packages = [{include = "sparky", from = "src"}]
+
+[tool.poetry.scripts]
+sparky = "sparky.cli:app"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
