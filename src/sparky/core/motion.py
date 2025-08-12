@@ -208,8 +208,19 @@ class MotionController:
             verify: Whether to verify that command was actually executed
         """
         try:
+            # Check if command exists and suggest alternatives
             if command_name not in SPORT_CMD:
-                logger.error(f"Unknown sport command: {command_name}")
+                # Try to find similar commands
+                available_commands = list(SPORT_CMD.keys())
+                similar_commands = [cmd for cmd in available_commands if command_name.lower() in cmd.lower() or cmd.lower() in command_name.lower()]
+                
+                error_msg = f"Unknown sport command: {command_name}"
+                if similar_commands:
+                    error_msg += f". Did you mean one of: {', '.join(similar_commands[:3])}?"
+                else:
+                    error_msg += f". Available commands include: {', '.join(available_commands[:5])}..."
+                
+                logger.error(error_msg)
                 return False
             
             logger.info(f"Executing sport command: {command_name}")
@@ -344,6 +355,131 @@ class MotionController:
         
         return status
     
+    # Advanced Movement Methods
+    async def front_flip(self, verify: bool = True) -> bool:
+        """
+        Execute front flip/somersault
+        
+        WARNING: This command may not be available in current firmware.
+        Previous versions required "ai" mode, which is no longer available.
+        """
+        try:
+            logger.warning("FrontFlip command may not be available in current firmware.")
+            logger.info("Executing front flip command")
+            return await self.execute_sport_command("FrontFlip", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in front flip: {e}")
+            return False
+    
+    async def back_flip(self, verify: bool = True) -> bool:
+        """
+        Execute back flip/somersault
+        
+        WARNING: This command may not be available in current firmware.
+        """
+        try:
+            logger.warning("BackFlip command may not be available in current firmware.")
+            logger.info("Executing back flip command")
+            return await self.execute_sport_command("BackFlip", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in back flip: {e}")
+            return False
+    
+    async def left_flip(self, verify: bool = True) -> bool:
+        """
+        Execute left side flip
+        
+        WARNING: This command may not be available in current firmware.
+        """
+        try:
+            logger.warning("LeftFlip command may not be available in current firmware.")
+            logger.info("Executing left flip command")
+            return await self.execute_sport_command("LeftFlip", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in left flip: {e}")
+            return False
+    
+    async def right_flip(self, verify: bool = True) -> bool:
+        """
+        Execute right side flip
+        
+        WARNING: This command may not be available in current firmware.
+        """
+        try:
+            logger.warning("RightFlip command may not be available in current firmware.")
+            logger.info("Executing right flip command")
+            return await self.execute_sport_command("RightFlip", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in right flip: {e}")
+            return False
+    
+    async def front_jump(self, verify: bool = True) -> bool:
+        """
+        Execute forward jump
+        
+        This command has medium priority and may work in current firmware.
+        """
+        try:
+            logger.info("Executing front jump command")
+            return await self.execute_sport_command("FrontJump", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in front jump: {e}")
+            return False
+    
+    async def front_pounce(self, verify: bool = True) -> bool:
+        """
+        Execute pouncing motion
+        
+        This command has medium priority and may work in current firmware.
+        """
+        try:
+            logger.info("Executing front pounce command")
+            return await self.execute_sport_command("FrontPounce", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in front pounce: {e}")
+            return False
+    
+    async def test_advanced_movement_availability(self) -> Dict[str, bool]:
+        """
+        Test which advanced movements are available in current firmware
+        
+        Returns:
+            Dictionary mapping command names to availability status
+        """
+        advanced_commands = [
+            "FrontFlip", "BackFlip", "LeftFlip", "RightFlip", 
+            "FrontJump", "FrontPounce", "Handstand"
+        ]
+        
+        availability = {}
+        
+        logger.info("Testing advanced movement availability...")
+        
+        for command in advanced_commands:
+            try:
+                # Test command availability without executing
+                response = await self.conn.datachannel.pub_sub.publish_request_new(
+                    RTC_TOPIC["SPORT_MOD"], 
+                    {"api_id": SPORT_CMD[command]}
+                )
+                
+                if response['data']['header']['status']['code'] == 0:
+                    availability[command] = True
+                    logger.info(f"✅ {command} is available")
+                else:
+                    availability[command] = False
+                    error_code = response['data']['header']['status']['code']
+                    logger.warning(f"❌ {command} not available (error {error_code})")
+                    
+            except Exception as e:
+                availability[command] = False
+                logger.error(f"❌ {command} test failed: {e}")
+                
+            # Brief pause between tests
+            await asyncio.sleep(0.5)
+        
+        return availability
+
     def get_firmware_compatibility_info(self) -> Dict[str, Any]:
         """
         Get information about firmware compatibility and limitations
@@ -364,5 +500,14 @@ class MotionController:
             "potentially_restricted_commands": [
                 "Handstand", "BackFlip", "FrontFlip", "LeftFlip", "RightFlip",
                 "StandOut", "FrontJump", "FrontPounce"
-            ]
+            ],
+            "advanced_movements": {
+                "FrontFlip": {"id": 1030, "risk": "High", "firmware_dependent": True},
+                "BackFlip": {"id": 1044, "risk": "High", "firmware_dependent": True},
+                "LeftFlip": {"id": 1042, "risk": "High", "firmware_dependent": True},
+                "RightFlip": {"id": 1043, "risk": "High", "firmware_dependent": True},
+                "FrontJump": {"id": 1031, "risk": "Medium", "firmware_dependent": False},
+                "FrontPounce": {"id": 1032, "risk": "Medium", "firmware_dependent": False},
+                "Handstand": {"id": 1301, "risk": "High", "firmware_dependent": True}
+            }
         }
