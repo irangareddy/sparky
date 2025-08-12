@@ -41,13 +41,13 @@ This document provides a systematic approach to testing all Go2 robot functional
 
 | Command | API ID | Priority | Status | Notes |
 |---------|--------|----------|--------|-------|
-| FrontFlip | 1030 | Low | ⭕ | Front somersault |
-| BackFlip | 1044 | Low | ⭕ | Back somersault |
-| LeftFlip | 1042 | Low | ⭕ | Left side flip |
-| RightFlip | 1043 | Low | ⭕ | Right side flip |
-| FrontJump | 1031 | Medium | ⭕ | Forward jump |
-| FrontPounce | 1032 | Medium | ⭕ | Pouncing motion |
-| Handstand | 1301 | Low | ⭕ | Handstand position |
+| FrontFlip | 1030 | Low | ✅ | Front somersault - **WORKING!** (Tested 2025-08-12) |
+| BackFlip | 1044 | Low | ❌ | Back somersault - Error 3203 (MCF mode limitation) |
+| LeftFlip | 1042 | Low | ❌ | Left side flip - Error 3203 (MCF mode limitation) |
+| RightFlip | 1043 | Low | ❌ | Right side flip - Error 3203 (MCF mode limitation) |
+| FrontJump | 1031 | Medium | ✅ | Forward jump - **WORKING!** (Tested 2025-08-12) |
+| FrontPounce | 1032 | Medium | ✅ | Pouncing motion - **WORKING!** (Tested 2025-08-12) |
+| Handstand | 1301 | Low | ❌ | Handstand position - Error 3203 (MCF mode limitation) |
 
 ### Fun Actions
 
@@ -462,7 +462,92 @@ robot.subscribe("rt/multiplestate")
 
 # Video stream test
 robot.subscribe("rt/api/videohub/request")
+
+# Advanced movements test (using Sparky Robot class)
+from sparky import Robot
+
+async def test_advanced_movements():
+    robot = Robot()
+    await robot.connect()
+    
+    # Test availability first
+    availability = await robot.test_advanced_movements()
+    print("Available movements:", availability)
+    
+    # Test individual movements (ensure safe environment!)
+    await robot.front_jump()      # Medium priority
+    await robot.front_pounce()    # Medium priority
+    await robot.front_flip()      # Low priority - may not work
+    await robot.back_flip()       # Low priority - may not work
+    await robot.handstand()       # Low priority - may not work
+    
+    await robot.disconnect()
 ```
+
+## Advanced Movement Testing Scripts
+
+The following test scripts are available in the `/examples/` directory:
+
+1. **`advanced_movement_test.py`** - Comprehensive automated testing of all advanced movements
+2. **`advanced_movement_demo.py`** - Interactive demo for testing individual movements
+3. **`testing/motion_test.py`** - Basic motion testing framework
+
+### Running Advanced Movement Tests
+
+```bash
+# Run comprehensive automated test
+python examples/testing/advanced_movement_test.py
+
+# Run interactive demo
+python examples/advanced_movement_demo.py
+
+# Run basic motion tests
+python examples/testing/motion_test.py
+```
+
+### Safety Guidelines for Advanced Movement Testing
+
+⚠️ **IMPORTANT SAFETY REQUIREMENTS:**
+
+1. **Space Requirements**: Minimum 3m x 3m clear area
+2. **Surface**: Use soft mats or grass for landing
+3. **Supervision**: Always have a spotter ready
+4. **Emergency Stop**: Keep Ctrl+C ready to abort
+5. **Recovery**: Allow 5+ seconds between complex movements
+6. **Environment**: Test in controlled, safe environment only
+
+### Expected Results by Firmware
+
+Based on current Go2 firmware limitations:
+
+- **Working (Medium Priority)**: FrontJump, FrontPounce
+- **Likely Restricted (Low Priority)**: FrontFlip, BackFlip, LeftFlip, RightFlip, Handstand
+- **Reason**: Current firmware only supports MCF mode; AI mode (required for complex acrobatics) has been removed
+
+### ✅ **ACTUAL TEST RESULTS** (Updated 2025-08-12)
+
+**Test Configuration:**
+- Robot: Go2 
+- Firmware Mode: MCF (Manual Control Firmware)
+- Connection: Local AP
+- Test Script: `advanced_movement_test.py`
+
+**Results Summary:**
+- ✅ **Working Commands (3/7)**: FrontJump, FrontPounce, **FrontFlip**
+- ❌ **Firmware Limited (4/7)**: BackFlip, LeftFlip, RightFlip, Handstand
+- **Error Code**: 3203 - "Command not available in current motion mode"
+
+**Key Findings:**
+1. **FrontFlip surprisingly works!** Despite being a "flip" command, it doesn't trigger error 3203
+2. **Medium priority commands work as expected** (FrontJump, FrontPounce)
+3. **Other flip commands are restricted** - only BackFlip, LeftFlip, RightFlip fail
+4. **Handstand is completely blocked** - confirms AI mode dependency
+
+**Recommendations:**
+- Focus demos on FrontJump, FrontPounce, and FrontFlip
+- Use FrontFlip cautiously - ensure safe landing area
+- Consider FrontFlip as your "showcase" acrobatic move
+- BackFlip/side flips require firmware update or AI mode restoration
 
 ---
 

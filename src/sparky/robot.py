@@ -170,7 +170,25 @@ class Robot(RobotInterface):
             return False
         
         try:
-            return await self.motion.execute_sport_command(command.title(), verify=verify)
+            # Handle common command name variations and casing
+            command_mapping = {
+                "balancestand": "BalanceStand",
+                "standup": "StandUp", 
+                "standdown": "StandDown",
+                "recoverystand": "RecoveryStand",
+                "stopmove": "StopMove",
+                "frontflip": "FrontFlip",
+                "backflip": "BackFlip",
+                "leftflip": "LeftFlip", 
+                "rightflip": "RightFlip",
+                "frontjump": "FrontJump",
+                "frontpounce": "FrontPounce"
+            }
+            
+            # Normalize command name
+            normalized_command = command_mapping.get(command.lower(), command.title())
+            
+            return await self.motion.execute_sport_command(normalized_command, verify=verify)
         except Exception as e:
             logger.error(f"Error executing command {command}: {e}")
             return False
@@ -336,6 +354,133 @@ class Robot(RobotInterface):
         except Exception as e:
             logger.error(f"Error spinning 360: {e}")
             return False
+    
+    # Advanced Movement Methods
+    async def front_flip(self) -> bool:
+        """
+        Execute front flip/somersault
+        
+        WARNING: This command may not be available in current firmware.
+        Requires adequate space and soft landing area.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.front_flip()
+        except Exception as e:
+            logger.error(f"Error executing front flip: {e}")
+            return False
+    
+    async def back_flip(self) -> bool:
+        """
+        Execute back flip/somersault
+        
+        WARNING: This command may not be available in current firmware.
+        Requires adequate space and soft landing area.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.back_flip()
+        except Exception as e:
+            logger.error(f"Error executing back flip: {e}")
+            return False
+    
+    async def left_flip(self) -> bool:
+        """
+        Execute left side flip
+        
+        WARNING: This command may not be available in current firmware.
+        Requires adequate space and soft landing area.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.left_flip()
+        except Exception as e:
+            logger.error(f"Error executing left flip: {e}")
+            return False
+    
+    async def right_flip(self) -> bool:
+        """
+        Execute right side flip
+        
+        WARNING: This command may not be available in current firmware.
+        Requires adequate space and soft landing area.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.right_flip()
+        except Exception as e:
+            logger.error(f"Error executing right flip: {e}")
+            return False
+    
+    async def front_jump(self) -> bool:
+        """
+        Execute forward jump
+        
+        This command has medium priority and may work in current firmware.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.front_jump()
+        except Exception as e:
+            logger.error(f"Error executing front jump: {e}")
+            return False
+    
+    async def front_pounce(self) -> bool:
+        """
+        Execute pouncing motion
+        
+        This command has medium priority and may work in current firmware.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.front_pounce()
+        except Exception as e:
+            logger.error(f"Error executing front pounce: {e}")
+            return False
+    
+    async def handstand(self, enable: bool = True) -> bool:
+        """
+        Enable/disable handstand mode
+        
+        WARNING: This command may not be available in current firmware.
+        Previous versions required "ai" mode, which is no longer available.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.handstand(enable)
+        except Exception as e:
+            logger.error(f"Error executing handstand: {e}")
+            return False
+    
+    async def test_advanced_movements(self) -> Dict[str, bool]:
+        """
+        Test which advanced movements are available
+        
+        Returns:
+            Dictionary mapping command names to availability status
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return {}
+        try:
+            return await self.motion.test_advanced_movement_availability()
+        except Exception as e:
+            logger.error(f"Error testing advanced movements: {e}")
+            return {}
     
     # Context manager support
     async def __aenter__(self):
