@@ -39,6 +39,13 @@ build-backend = "poetry.core.masonry.api"
 target-version = "py311"
 line-length = 88
 src = ["src"]
+exclude = [
+    "examples/",
+    "driver_examples/",
+    ".venv",
+    "__pycache__",
+    "*.pyc",
+]
 
 [tool.ruff.lint]
 select = [
@@ -73,6 +80,10 @@ warn_unused_ignores = true
 warn_return_any = true
 strict_equality = true
 show_error_codes = true
+exclude = [
+    "examples/",
+    "driver_examples/",
+]
 
 [[tool.mypy.overrides]]
 module = ["go2_webrtc_connect.*"]

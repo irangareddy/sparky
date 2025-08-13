@@ -27,15 +27,15 @@ tasks:
     desc: Format code with ruff
     deps: [install]
     cmds:
-      - poetry run ruff format src tests examples
-      - poetry run ruff check src tests examples --fix-only
+      - poetry run ruff format src tests
+      - poetry run ruff check src tests --fix-only
 
   format:unsafe:
     desc: Format code with ruff (including unsafe fixes)
     deps: [install]
     cmds:
-      - poetry run ruff format src tests examples
-      - poetry run ruff check src tests examples --fix-only --unsafe-fixes
+      - poetry run ruff format src tests
+      - poetry run ruff check src tests --fix-only --unsafe-fixes
 
   check:
     desc: Run all quality checks
@@ -52,9 +52,9 @@ tasks:
     deps: [install]
     cmds:
       - mkdir -p {{.DIST_DIR}}
-      - poetry run ruff check src tests examples --output-format junit --output-file {{.DIST_DIR}}/junit-ruff.xml || true
-      - poetry run ruff check src tests examples --output-format concise
-      - poetry run ruff format --check src tests examples
+      - poetry run ruff check src tests --output-format junit --output-file {{.DIST_DIR}}/junit-ruff.xml || true
+      - poetry run ruff check src tests --output-format concise
+      - poetry run ruff format --check src tests
 
   check:mypy:
     desc: Run mypy type checking
@@ -115,6 +115,14 @@ tasks:
     deps: [install]
     cmds:
       - python examples/testing/motion_test.py
+
+  format-examples:
+    desc: Format example scripts (optional)
+    deps: [install]
+    cmds:
+      - poetry run ruff format examples driver_examples
+      - poetry run ruff check examples driver_examples --fix-only
+      - echo "✅ Examples formatted!"
 
   ci:
     desc: Run CI checks locally (same as GitHub Actions)
