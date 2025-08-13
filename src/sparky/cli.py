@@ -34,6 +34,18 @@ else:
         create_remote_connection,
     )
     from sparky.core.motion import MotionController
+    
+    # Import ASCII banner
+    try:
+        from sparky.utils.banner import print_banner as print_ascii_banner, get_banner
+    except ImportError:
+        # Fallback if banner module not available
+        def print_ascii_banner():
+            console.print("[bold cyan]SPARKY CLI[/bold cyan]  •  [bold green]v0.0.2[/bold green]")
+            console.print("[bold green]Welcome to Sparky CLI! Ready to roll.[/bold green]\n")
+        
+        def get_banner():
+            return "[bold cyan]SPARKY CLI[/bold cyan]  •  [bold green]v0.0.2[/bold green]"
 
     # Initialize Typer app
     app = typer.Typer(
@@ -47,14 +59,8 @@ else:
     console = Console()
 
     def print_banner():
-        """Print Sparky banner"""
-        banner = """
-    [bold blue]╔══════════════════════════════════════════════════════════════╗[/bold blue]
-    [bold blue]║[/bold blue]                    [bold green]SPARKY - GO2 ROBOT CONTROL[/bold green]                    [bold blue]║[/bold blue]
-    [bold blue]║[/bold blue]                    [dim]Comprehensive Go2 Robot Control Interface[/dim]                    [bold blue]║[/bold blue]
-    [bold blue]╚══════════════════════════════════════════════════════════════╝[/bold blue]
-    """
-        console.print(banner)
+        """Print Sparky banner with robot dog and SPARKY logo"""
+        print_ascii_banner()
 
     def print_firmware_warning():
         """Print firmware compatibility warning"""
@@ -83,6 +89,11 @@ else:
         info_table.add_row("Firmware Support", "Current (mcf mode only)")
 
         console.print(info_table)
+
+    @app.command()
+    def banner():
+        """Show Sparky banner with robot dog and SPARKY logo"""
+        print_banner()
 
     @app.command()
     def status(

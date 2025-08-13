@@ -4,6 +4,8 @@
 
 Perfect for Python beginners, researchers, and Vision Pro developers who need responsive robot control.
 
+![Sparky CLI Banner](docs/cli_banner.png)
+
 ---
 
 ##  **Vision Pro Ready**
