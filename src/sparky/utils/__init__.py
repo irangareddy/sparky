@@ -4,22 +4,21 @@ Common constants, exceptions, and helper functions
 """
 
 from .constants import (
-    MovementDirection,
-    MovementQuality, 
-    ConnectionMethod,
-    DEFAULT_SPEED,
     DEFAULT_DURATION,
+    DEFAULT_SPEED,
     MAX_SPEED,
-    MIN_SPEED
+    MIN_SPEED,
+    ConnectionMethod,
+    MovementDirection,
+    MovementQuality,
 )
-
 from .exceptions import (
-    SparkyError,
-    ConnectionError,
-    RobotControlError,
-    DataCollectionError,
     ConfigurationError,
-    TimeoutError
+    ConnectionError,
+    DataCollectionError,
+    RobotControlError,
+    SparkyError,
+    TimeoutError,
 )
 
 __all__ = [
@@ -28,10 +27,10 @@ __all__ = [
     "MovementQuality",
     "ConnectionMethod",
     "DEFAULT_SPEED",
-    "DEFAULT_DURATION", 
+    "DEFAULT_DURATION",
     "MAX_SPEED",
     "MIN_SPEED",
-    
+
     # Exceptions
     "SparkyError",
     "ConnectionError",

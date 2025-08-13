@@ -4,7 +4,7 @@ A beautiful command-line interface for controlling Go2 robots
 """
 
 import asyncio
-from typing import Optional, List
+
 
 def _missing_cli_deps_msg():
     return (
@@ -15,11 +15,11 @@ def _missing_cli_deps_msg():
 
 try:
     import typer
+    from rich import print as rprint
     from rich.console import Console
-    from rich.table import Table
     from rich.panel import Panel
     from rich.progress import Progress, SpinnerColumn, TextColumn
-    from rich import print as rprint
+    from rich.table import Table
 except ImportError:
     def app():
         import sys
@@ -29,7 +29,7 @@ else:
         create_local_ap_connection,
         create_local_sta_connection,
         create_local_sta_connection_by_serial,
-        create_remote_connection
+        create_remote_connection,
     )
     from sparky.core.motion import MotionController
 
@@ -70,30 +70,30 @@ else:
     def version():
         """Show Sparky version and information"""
         print_banner()
-        
+
         info_table = Table(title="Sparky Information")
         info_table.add_column("Property", style="cyan")
         info_table.add_column("Value", style="green")
-        
+
         info_table.add_row("Version", "0.0.2")
         info_table.add_row("Author", "Ranga Reddy Nukala")
         info_table.add_row("Description", "Go2 Robot Control Package")
         info_table.add_row("Firmware Support", "Current (mcf mode only)")
-        
+
         console.print(info_table)
 
     @app.command()
     def status(
         connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type: localap, localsta, remote"),
-        ip: Optional[str] = typer.Option(None, "--ip", "-i", help="Robot IP address (for localsta)"),
-        serial: Optional[str] = typer.Option(None, "--serial", help="Robot serial number"),
-        username: Optional[str] = typer.Option(None, "--username", "-u", help="Username (for remote)"),
-        password: Optional[str] = typer.Option(None, "--password", "-p", help="Password (for remote)")
+        ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address (for localsta)"),
+        serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
+        username: str | None = typer.Option(None, "--username", "-u", help="Username (for remote)"),
+        password: str | None = typer.Option(None, "--password", "-p", help="Password (for remote)")
     ):
         """Get robot status and firmware information"""
         print_banner()
         print_firmware_warning()
-        
+
         async def get_status():
             try:
                 # Create connection based on type
@@ -115,60 +115,60 @@ else:
                 else:
                     console.print(f"[red]Error: Unknown connection type '{connection_type}'[/red]")
                     return
-                
+
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
                     console=console
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
-                    
+
                     if not await connection.connect():
                         console.print("[red]Failed to connect to robot[/red]")
                         return
-                    
+
                     progress.update(task, description="Getting robot status...")
-                    
+
                     # Create motion controller
                     motion = MotionController(connection.conn)
-                    
+
                     # Get status information
                     motion_mode = await motion.get_motion_mode()
                     status_info = motion.get_status()
                     compatibility = motion.get_firmware_compatibility_info()
-                    
+
                     progress.update(task, description="Status retrieved successfully!")
-                
+
                 # Display status
                 status_table = Table(title="Robot Status")
                 status_table.add_column("Property", style="cyan")
                 status_table.add_column("Value", style="green")
-                
+
                 status_table.add_row("Connection Type", connection_type)
                 status_table.add_row("Connection Status", " Connected")
                 status_table.add_row("Motion Mode", motion_mode or "Unknown")
                 status_table.add_row("Is Moving", str(status_info["is_moving"]))
                 status_table.add_row("Available Commands", str(len(status_info["available_commands"])))
-                
+
                 console.print(status_table)
-                
+
                 # Display firmware compatibility
                 compat_table = Table(title="Firmware Compatibility")
                 compat_table.add_column("Category", style="cyan")
                 compat_table.add_column("Status", style="green")
-                
+
                 compat_table.add_row("Supported Modes", ", ".join(compatibility["supported_modes"]))
                 compat_table.add_row("Unsupported Modes", ", ".join(compatibility["unsupported_modes"]))
                 compat_table.add_row("Working Commands", str(len(compatibility["working_commands"])))
                 compat_table.add_row("Restricted Commands", str(len(compatibility["potentially_restricted_commands"])))
-                
+
                 console.print(compat_table)
-                
+
                 await connection.disconnect()
-                
+
             except Exception as e:
                 console.print(f"[red]Error: {e}[/red]")
-        
+
         asyncio.run(get_status())
 
     @app.command()
@@ -177,13 +177,13 @@ else:
         speed: float = typer.Option(0.5, "--speed", "-s", help="Movement speed (0.1 to 1.0)"),
         duration: float = typer.Option(3.0, "--duration", "-d", help="Movement duration in seconds"),
         connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type"),
-        ip: Optional[str] = typer.Option(None, "--ip", "-i", help="Robot IP address"),
-        serial: Optional[str] = typer.Option(None, "--serial", help="Robot serial number"),
+        ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address"),
+        serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
         no_verify: bool = typer.Option(False, "--no-verify", help="Disable movement verification")
     ):
         """Move the robot in a specific direction"""
         print_banner()
-        
+
         async def execute_move():
             try:
                 # Create connection
@@ -197,23 +197,23 @@ else:
                 else:
                     console.print(f"[red]Error: Unsupported connection type '{connection_type}'[/red]")
                     return
-                
+
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
                     console=console
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
-                    
+
                     if not await connection.connect():
                         console.print("[red]Failed to connect to robot[/red]")
                         return
-                    
+
                     progress.update(task, description=f"Moving {direction}...")
-                    
+
                     # Create motion controller
                     motion = MotionController(connection.conn)
-                    
+
                     # Execute movement based on direction
                     success = False
                     if direction == "forward":
@@ -231,9 +231,9 @@ else:
                     else:
                         console.print(f"[red]Error: Unknown direction '{direction}'[/red]")
                         return
-                    
+
                     progress.update(task, description="Movement completed!")
-                
+
                 if success:
                     if no_verify:
                         console.print(f"[green] Move command accepted for {direction}[/green]")
@@ -242,25 +242,25 @@ else:
                         console.print(f"[green] Successfully moved {direction} for {duration} seconds[/green]")
                 else:
                     console.print(f"[red]FAILED to move {direction}[/red]")
-                
+
                 await connection.disconnect()
-                
+
             except Exception as e:
                 console.print(f"[red]Error: {e}[/red]")
-        
+
         asyncio.run(execute_move())
 
     @app.command()
     def command(
         cmd: str = typer.Argument(..., help="Sport command to execute: hello, sit, standup, dance1, dance2, etc."),
         connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type"),
-        ip: Optional[str] = typer.Option(None, "--ip", "-i", help="Robot IP address"),
-        serial: Optional[str] = typer.Option(None, "--serial", help="Robot serial number"),
+        ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address"),
+        serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
         no_verify: bool = typer.Option(False, "--no-verify", help="Disable command execution verification")
     ):
         """Execute a sport command on the robot"""
         print_banner()
-        
+
         async def execute_command():
             try:
                 # Create connection
@@ -274,28 +274,28 @@ else:
                 else:
                     console.print(f"[red]Error: Unsupported connection type '{connection_type}'[/red]")
                     return
-                
+
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
                     console=console
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
-                    
+
                     if not await connection.connect():
                         console.print("[red]Failed to connect to robot[/red]")
                         return
-                    
+
                     progress.update(task, description=f"Executing {cmd} command...")
-                    
+
                     # Create motion controller
                     motion = MotionController(connection.conn)
-                    
+
                     # Execute command
                     success = await motion.execute_sport_command(cmd.title(), verify=not no_verify)
-                    
+
                     progress.update(task, description="Command completed!")
-                
+
                 if success:
                     if no_verify:
                         console.print(f"[green] Command '{cmd}' accepted[/green]")
@@ -305,25 +305,25 @@ else:
                 else:
                     console.print(f"[red]FAILED to execute '{cmd}' command[/red]")
                     console.print("[yellow]This command may not be available in current firmware[/yellow]")
-                
+
                 await connection.disconnect()
-                
+
             except Exception as e:
                 console.print(f"[red]Error: {e}[/red]")
-        
+
         asyncio.run(execute_command())
 
     @app.command()
     def pattern(
         pattern_name: str = typer.Argument(..., help="Movement pattern: square, spin"),
         connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type"),
-        ip: Optional[str] = typer.Option(None, "--ip", "-i", help="Robot IP address"),
-        serial: Optional[str] = typer.Option(None, "--serial", help="Robot serial number"),
+        ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address"),
+        serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
         no_verify: bool = typer.Option(False, "--no-verify", help="Disable movement verification")
     ):
         """Execute a movement pattern"""
         print_banner()
-        
+
         async def execute_pattern():
             try:
                 # Create connection
@@ -337,23 +337,23 @@ else:
                 else:
                     console.print(f"[red]Error: Unsupported connection type '{connection_type}'[/red]")
                     return
-                
+
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
                     console=console
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
-                    
+
                     if not await connection.connect():
                         console.print("[red]Failed to connect to robot[/red]")
                         return
-                    
+
                     progress.update(task, description=f"Executing {pattern_name} pattern...")
-                    
+
                     # Create motion controller
                     motion = MotionController(connection.conn)
-                    
+
                     # Execute pattern
                     success = False
                     if pattern_name == "square":
@@ -363,9 +363,9 @@ else:
                     else:
                         console.print(f"[red]Error: Unknown pattern '{pattern_name}'[/red]")
                         return
-                    
+
                     progress.update(task, description="Pattern completed!")
-                
+
                 if success:
                     if no_verify:
                         console.print(f"[green] Pattern '{pattern_name}' commands accepted[/green]")
@@ -374,28 +374,28 @@ else:
                         console.print(f"[green] Successfully executed '{pattern_name}' pattern[/green]")
                 else:
                     console.print(f"[red]FAILED to execute '{pattern_name}' pattern[/red]")
-                
+
                 await connection.disconnect()
-                
+
             except Exception as e:
                 console.print(f"[red]Error: {e}[/red]")
-        
+
         asyncio.run(execute_pattern())
 
     @app.command()
     def test(
         connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type"),
-        ip: Optional[str] = typer.Option(None, "--ip", "-i", help="Robot IP address"),
-        serial: Optional[str] = typer.Option(None, "--serial", help="Robot serial number")
+        ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address"),
+        serial: str | None = typer.Option(None, "--serial", help="Robot serial number")
     ):
         """Run comprehensive firmware compatibility test"""
         print_banner()
         print_firmware_warning()
-        
+
         console.print("[yellow]This will run a comprehensive test of all available commands.[/yellow]")
         if not typer.confirm("Continue?"):
             return
-        
+
         async def run_test():
             try:
                 # Create connection
@@ -409,34 +409,34 @@ else:
                 else:
                     console.print(f"[red]Error: Unsupported connection type '{connection_type}'[/red]")
                     return
-                
+
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
                     console=console
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
-                    
+
                     if not await connection.connect():
                         console.print("[red]Failed to connect to robot[/red]")
                         return
-                    
+
                     progress.update(task, description="Running compatibility tests...")
-                    
+
                     # Create motion controller
                     motion = MotionController(connection.conn)
-                    
+
                     # Get compatibility info
                     compatibility = motion.get_firmware_compatibility_info()
-                    
+
                     progress.update(task, description="Tests completed!")
-                
+
                 # Display results
                 results_table = Table(title="Firmware Compatibility Test Results")
                 results_table.add_column("Test Category", style="cyan")
                 results_table.add_column("Status", style="green")
                 results_table.add_column("Details", style="yellow")
-                
+
                 results_table.add_row("Connection", " Success", "Connected successfully")
                 results_table.add_row("Motion Mode", " mcf", "Current firmware mode")
                 results_table.add_row("Basic Movements", " Available", "Forward, backward, left, right, turns")
@@ -444,48 +444,48 @@ else:
                 results_table.add_row("Advanced Commands", "LIMITED", f"{len(compatibility['potentially_restricted_commands'])} may be restricted")
                 results_table.add_row("Mode Switching", "NOT AVAILABLE", "normal/ai modes removed")
                 results_table.add_row("Movement Verification", " Available", "Sensor-based movement detection")
-                
+
                 console.print(results_table)
-                
+
                 await connection.disconnect()
-                
+
             except Exception as e:
                 console.print(f"[red]Error: {e}[/red]")
-        
+
         asyncio.run(run_test())
 
     @app.command()
     def list_commands():
         """List all available sport commands"""
         print_banner()
-        
+
         from sparky.core.motion import MotionController
-        
+
         # Create a dummy motion controller to get command list
         motion = MotionController(None)
         commands = motion.get_available_commands()
         compatibility = motion.get_firmware_compatibility_info()
-        
+
         # Create tables
         working_table = Table(title=" Working Commands (Recommended)")
         working_table.add_column("Command", style="green")
         working_table.add_column("ID", style="cyan")
-        
+
         for cmd in compatibility["working_commands"]:
             if cmd in commands:
                 working_table.add_row(cmd, str(commands[cmd]))
-        
+
         restricted_table = Table(title="Potentially Restricted Commands")
         restricted_table.add_column("Command", style="yellow")
         restricted_table.add_column("ID", style="cyan")
-        
+
         for cmd in compatibility["potentially_restricted_commands"]:
             if cmd in commands:
                 restricted_table.add_row(cmd, str(commands[cmd]))
-        
+
         console.print(working_table)
         console.print(restricted_table)
-        
+
         console.print("\n[dim]Note: Commands marked as 'restricted' may not work in current firmware.[/dim]")
 
 if __name__ == "__main__":

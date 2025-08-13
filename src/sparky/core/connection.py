@@ -3,9 +3,9 @@ Sparky Connection Manager
 Handles WebRTC connections to Go2 robots
 """
 
-import asyncio
 import logging
-from typing import Optional, Dict, Any
+from typing import Any
+
 from go2_webrtc_driver.webrtc_driver import Go2WebRTCConnection, WebRTCConnectionMethod
 
 logger = logging.getLogger(__name__)
@@ -15,13 +15,13 @@ class Go2Connection:
     Manages WebRTC connection to Go2 robot
     Supports different connection methods and provides connection status
     """
-    
-    def __init__(self, 
+
+    def __init__(self,
                  connection_method: WebRTCConnectionMethod = WebRTCConnectionMethod.LocalAP,
-                 ip: Optional[str] = None,
-                 serial_number: Optional[str] = None,
-                 username: Optional[str] = None,
-                 password: Optional[str] = None):
+                 ip: str | None = None,
+                 serial_number: str | None = None,
+                 username: str | None = None,
+                 password: str | None = None):
         """
         Initialize connection manager
         
@@ -40,12 +40,12 @@ class Go2Connection:
         self.conn = None
         self.is_connected = False
         self.connection_status = "disconnected"
-        
+
     async def connect(self) -> bool:
         """Establish WebRTC connection to robot"""
         try:
             logger.info("Establishing WebRTC connection...")
-            
+
             # Create connection based on method
             if self.connection_method == WebRTCConnectionMethod.LocalAP:
                 self.conn = Go2WebRTCConnection(WebRTCConnectionMethod.LocalAP)
@@ -67,20 +67,20 @@ class Go2Connection:
                 )
             else:
                 raise ValueError(f"Unsupported connection method: {self.connection_method}")
-            
+
             # Connect
             await self.conn.connect()
             self.is_connected = True
             self.connection_status = "connected"
             logger.info("WebRTC connection established successfully")
             return True
-            
+
         except Exception as e:
             self.is_connected = False
             self.connection_status = "failed"
             logger.error(f"Failed to establish connection: {e}")
             return False
-    
+
     async def disconnect(self) -> bool:
         """Disconnect from robot"""
         try:
@@ -89,17 +89,17 @@ class Go2Connection:
                 if hasattr(self.conn, 'close'):
                     await self.conn.close()
                 self.conn = None
-            
+
             self.is_connected = False
             self.connection_status = "disconnected"
             logger.info("Disconnected from robot")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error during disconnect: {e}")
             return False
-    
-    def get_connection_info(self) -> Dict[str, Any]:
+
+    def get_connection_info(self) -> dict[str, Any]:
         """Get connection information"""
         return {
             "connection_method": str(self.connection_method),
@@ -108,34 +108,34 @@ class Go2Connection:
             "is_connected": self.is_connected,
             "connection_status": self.connection_status
         }
-    
+
     def is_ready(self) -> bool:
         """Check if connection is ready for commands"""
         return self.is_connected and self.conn is not None
-    
+
     async def test_connection(self) -> bool:
         """Test if connection is working by sending a simple request"""
         try:
             if not self.is_ready():
                 return False
-            
+
             # Try to get motion mode as a connection test
             response = await self.conn.datachannel.pub_sub.publish_request_new(
                 "rt/api/sport/request",  # Using a simple topic
                 {"api_id": 1001}  # Simple request
             )
-            
+
             return response['data']['header']['status']['code'] == 0
-            
+
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
             return False
-    
+
     async def __aenter__(self):
         """Async context manager entry"""
         await self.connect()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         await self.disconnect()
@@ -155,7 +155,7 @@ async def create_local_sta_connection_by_serial(serial_number: str) -> Go2Connec
 
 async def create_remote_connection(serial_number: str, username: str, password: str) -> Go2Connection:
     """Create connection using Remote method"""
-    return Go2Connection(WebRTCConnectionMethod.Remote, 
+    return Go2Connection(WebRTCConnectionMethod.Remote,
                         serial_number=serial_number,
                         username=username,
                         password=password)

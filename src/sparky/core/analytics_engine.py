@@ -4,10 +4,9 @@ Lightweight data streaming for real-time robot control
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any
 
-from .data_collector import SensorData, DataCollector
-from ..utils.constants import MovementDirection, MovementQuality
+from .data_collector import DataCollector
 
 logger = logging.getLogger(__name__)
 
@@ -16,21 +15,21 @@ class AnalyticsEngine:
     Simple analytics for basic robot movement detection
     Focused on real-time control with minimal overhead
     """
-    
+
     def __init__(self, data_collector: DataCollector):
         self.data_collector = data_collector
         self.is_streaming = False
-        
+
     async def start_streaming(self):
         """Start simple data streaming"""
         self.is_streaming = True
         logger.info("Started data streaming")
-    
+
     async def stop_streaming(self):
         """Stop data streaming"""
         self.is_streaming = False
         logger.info("Stopped data streaming")
-    
+
     async def is_robot_moving(self) -> bool:
         """Simple movement detection for real-time control"""
         try:
@@ -39,8 +38,8 @@ class AnalyticsEngine:
         except Exception as e:
             logger.error(f"Error checking movement: {e}")
             return False
-    
-    async def get_current_sensor_data(self) -> Optional[Dict[str, Any]]:
+
+    async def get_current_sensor_data(self) -> dict[str, Any] | None:
         """Get latest sensor data for Vision Pro app"""
         try:
             latest_data = await self.data_collector.get_latest_data()
@@ -57,13 +56,13 @@ class AnalyticsEngine:
         except Exception as e:
             logger.error(f"Error getting sensor data: {e}")
             return None
-    
-    async def get_basic_status(self) -> Dict[str, Any]:
+
+    async def get_basic_status(self) -> dict[str, Any]:
         """Get basic robot status for real-time monitoring"""
         try:
             is_moving = await self.is_robot_moving()
             sensor_data = await self.get_current_sensor_data()
-            
+
             return {
                 "streaming": self.is_streaming,
                 "moving": is_moving,

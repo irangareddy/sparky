@@ -5,6 +5,7 @@ Centralized constants for consistent use across modules
 
 from enum import Enum
 
+
 class MovementDirection(Enum):
     """Robot movement directions"""
     FORWARD = "forward"
