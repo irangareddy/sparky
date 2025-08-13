@@ -16,6 +16,25 @@ tasks:
     cmds:
       - poetry install --extras "dev"
 
+  install-cli:
+    desc: Install Sparky CLI for easy command-line usage
+    cmds:
+      - poetry install --extras "cli"
+      - echo "Sparky CLI installed successfully!"
+      - echo ""
+      - echo "Usage options:"
+      - echo "1. Use with poetry run:"
+      - echo "   poetry run sparky version"
+      - echo "   poetry run sparky status"
+      - echo "   poetry run sparky command hello"
+      - echo ""
+      - echo "2. Activate poetry shell (recommended):"
+      - echo "   poetry shell"
+      - echo "   sparky version"
+      - echo ""
+      - echo "3. Or run commands directly:"
+      - echo "   poetry run sparky list-commands"
+
   clean:
     desc: Clean build artifacts and caches
     cmds:
@@ -24,42 +43,12 @@ tasks:
       - find . -name "__pycache__" -type d -exec rm -rf {} + || true
 
   format:
-    desc: Format code with ruff (safe fixes only)
-    deps: [install]
-    cmds:
-      - poetry run ruff format src tests
-      - poetry run ruff check src tests --fix-only
-
-  format:unsafe:
-    desc: Format code with ruff (including unsafe fixes)
+    desc: Format and fix all code issues with ruff
     deps: [install]
     cmds:
       - poetry run ruff format src tests
       - poetry run ruff check src tests --fix-only --unsafe-fixes
-
-  fix:
-    desc: Fix all ruff issues (format + safe + unsafe fixes)
-    deps: [install]
-    cmds:
-      - poetry run ruff format src tests
-      - poetry run ruff check src tests --fix-only --unsafe-fixes
-      - echo "✅ All ruff issues fixed!"
-
-  fix:check:
-    desc: Check and fix ruff issues, then verify
-    deps: [install]
-    cmds:
-      - task: fix
-      - task: check:ruff
-      - echo "✅ Ruff issues fixed and verified!"
-
-  fix:src:
-    desc: Fix ruff issues in source code only
-    deps: [install]
-    cmds:
-      - poetry run ruff format src
-      - poetry run ruff check src --fix-only --unsafe-fixes
-      - echo "✅ Source code ruff issues fixed!"
+      - echo "✅ All code formatted and fixed!"
 
   check:
     desc: Run all quality checks
@@ -112,41 +101,19 @@ tasks:
     cmds:
       - poetry build
 
-  run-examples:
-    desc: Run example scripts (interactive menu)
-    deps: [install]
-    cmds:
-      - echo "Available examples:"
-      - find examples -name "*.py" -type f | head -10
-      - echo "Run with python examples/script_name.py"
-
-  run-example:
-    desc: Run a specific example script
-    deps: [install]
-    cmds:
-      - python {{.CLI_ARGS}}
 
   dev:
     desc: Set up development environment
     cmds:
       - task: install
-      - task: fix
+      - task: format
       - echo "✅ Development environment ready!"
-      - echo "Try task run-examples"
 
   test-robot:
     desc: Run basic robot connectivity test
     deps: [install]
     cmds:
       - python examples/testing/motion_test.py
-
-  format-examples:
-    desc: Format example scripts (optional)
-    deps: [install]
-    cmds:
-      - poetry run ruff format examples driver_examples
-      - poetry run ruff check examples driver_examples --fix-only
-      - echo "✅ Examples formatted!"
 
   ci:
     desc: Run CI checks locally (same as GitHub Actions)
