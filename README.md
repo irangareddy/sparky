@@ -28,6 +28,11 @@ pip install -e .
 
 # Or with Poetry
 poetry install
+
+# For development (with all tools)
+poetry install --extras dev
+# or using Task
+task install
 ```
 
 ### Simple Demo
@@ -158,8 +163,8 @@ data = DataCollector(connection.conn)
 
 ### Common Issues
 - **Connection fails?** → Check robot is powered on and WiFi accessible
-- **Commands don't work?** → Run `python examples/testing/motion_test.py` 
-- **Import errors?** → Ensure `pip install -e .` was run successfully
+- **Commands don't work?** → Run `task test-robot` or `python examples/testing/motion_test.py` 
+- **Import errors?** → Ensure `task install` or `pip install -e .` was run successfully
 
 ### Examples Structure
 - **`examples/`** - All examples, organized by complexity and use case
@@ -169,6 +174,40 @@ data = DataCollector(connection.conn)
   - **`testing/`** - Robot testing & diagnostics  
   - **`advanced/`** - Complex demonstrations
 - **`driver_examples/`** - Hardware reference (audio, video, sensors)
+
+## 🛠 **Development & Testing**
+
+### Task Automation
+We use [Task](https://taskfile.dev/) for streamlined development workflows:
+
+```bash
+# Development setup
+task dev                 # Set up development environment
+task install            # Install all dependencies
+
+# Code quality
+task format             # Format code with ruff
+task check              # Run all quality checks
+task ci                 # Run full CI checks locally
+
+# Build & test
+task build              # Build package
+task clean              # Clean artifacts
+
+# Robot testing
+task run-examples       # List available examples
+task test-robot         # Quick robot connectivity test
+task run-example examples/simple_robot_control.py
+```
+
+### GitHub CI/CD
+Automated workflows ensure code quality and seamless publishing:
+
+- **Quality Checks** - Automatic testing on push/PR (ruff, mypy, pytest, safety)
+- **Test Reports** - Coverage reporting and test results in PRs
+- **Auto Publishing** - PyPI deployment on git tags
+
+See all available tasks: `task --list`
 
 ## 🏗 **Architecture**
 
@@ -188,4 +227,4 @@ sparky/
 
 **Perfect for:** Vision Pro apps • Real-time control • Python beginners • Research • Mobile robotics
 
-**Built with:** WebRTC • AsyncIO • Python 3.11+ • Poetry
+**Built with:** WebRTC • AsyncIO • Python 3.11+ • Poetry • Task • GitHub Actions

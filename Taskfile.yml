@@ -1,0 +1,123 @@
+version: '3'
+
+vars:
+  PACKAGE: sparky
+  DIST_DIR: dist
+
+tasks:
+  default:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  install:
+    desc: Install dependencies via Poetry
+    cmds:
+      - poetry install --extras "dev"
+
+  clean:
+    desc: Clean build artifacts and caches
+    cmds:
+      - rm -rf {{.DIST_DIR}} .mypy_cache .pytest_cache __pycache__
+      - find . -name "*.pyc" -delete || true
+      - find . -name "__pycache__" -type d -exec rm -rf {} + || true
+
+  format:
+    desc: Format code with ruff
+    deps: [install]
+    cmds:
+      - poetry run ruff format src tests examples
+      - poetry run ruff check src tests examples --fix-only
+
+  format:unsafe:
+    desc: Format code with ruff (including unsafe fixes)
+    deps: [install]
+    cmds:
+      - poetry run ruff format src tests examples
+      - poetry run ruff check src tests examples --fix-only --unsafe-fixes
+
+  check:
+    desc: Run all quality checks
+    deps: [install]
+    cmds:
+      - task: check:ruff
+      - task: check:mypy
+      - task: check:pytest
+      - task: check:deptry
+      - task: check:safety
+
+  check:ruff:
+    desc: Run ruff linting checks
+    deps: [install]
+    cmds:
+      - mkdir -p {{.DIST_DIR}}
+      - poetry run ruff check src tests examples --output-format junit --output-file {{.DIST_DIR}}/junit-ruff.xml || true
+      - poetry run ruff check src tests examples --output-format concise
+      - poetry run ruff format --check src tests examples
+
+  check:mypy:
+    desc: Run mypy type checking
+    deps: [install]
+    cmds:
+      - mkdir -p {{.DIST_DIR}}
+      - poetry run mypy src tests --junit-xml {{.DIST_DIR}}/junit-mypy.xml || true
+
+  check:pytest:
+    desc: Run tests with pytest
+    deps: [install]
+    cmds:
+      - mkdir -p {{.DIST_DIR}}/coverage
+      - poetry run pytest --junitxml={{.DIST_DIR}}/junit-pytest.xml --cov-report term --cov-report xml:{{.DIST_DIR}}/coverage.xml --cov-report html:{{.DIST_DIR}}/coverage --cov={{.PACKAGE}} || true
+
+  check:deptry:
+    desc: Check for unused or missing dependencies
+    deps: [install]
+    cmds:
+      - poetry run deptry . || true
+
+  check:safety:
+    desc: Check for security vulnerabilities
+    deps: [install]
+    cmds:
+      - poetry run safety check || true
+
+  build:
+    desc: Build the package
+    deps: [clean, install]
+    cmds:
+      - poetry build
+
+  run-examples:
+    desc: Run example scripts (interactive menu)
+    deps: [install]
+    cmds:
+      - echo "Available examples:"
+      - find examples -name "*.py" -type f | head -10
+      - echo "Run with python examples/script_name.py"
+
+  run-example:
+    desc: Run a specific example script
+    deps: [install]
+    cmds:
+      - python {{.CLI_ARGS}}
+
+  dev:
+    desc: Set up development environment
+    cmds:
+      - task: install
+      - task: format
+      - echo "✅ Development environment ready!"
+      - echo "Try task run-examples"
+
+  test-robot:
+    desc: Run basic robot connectivity test
+    deps: [install]
+    cmds:
+      - python examples/testing/motion_test.py
+
+  ci:
+    desc: Run CI checks locally (same as GitHub Actions)
+    cmds:
+      - task: check
+      - echo "✅ All CI checks passed!"
