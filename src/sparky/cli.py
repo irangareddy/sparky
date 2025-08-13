@@ -34,18 +34,25 @@ else:
         create_remote_connection,
     )
     from sparky.core.motion import MotionController
-    
+
     # Import ASCII banner
     try:
-        from sparky.utils.banner import print_banner as print_ascii_banner, get_banner
+        from sparky.utils.banner import get_banner
+        from sparky.utils.banner import print_banner as print_ascii_banner
     except ImportError:
         # Fallback if banner module not available
         def print_ascii_banner():
-            console.print("[bold cyan]SPARKY CLI[/bold cyan]  •  [bold green]v0.0.2[/bold green]")
-            console.print("[bold green]Welcome to Sparky CLI! Ready to roll.[/bold green]\n")
-        
+            console.print(
+                "[bold cyan]SPARKY CLI[/bold cyan]  •  [bold green]v0.0.2[/bold green]"
+            )
+            console.print(
+                "[bold green]Welcome to Sparky CLI! Ready to roll.[/bold green]\n"
+            )
+
         def get_banner():
-            return "[bold cyan]SPARKY CLI[/bold cyan]  •  [bold green]v0.0.2[/bold green]"
+            return (
+                "[bold cyan]SPARKY CLI[/bold cyan]  •  [bold green]v0.0.2[/bold green]"
+            )
 
     # Initialize Typer app
     app = typer.Typer(
