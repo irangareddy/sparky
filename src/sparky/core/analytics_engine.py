@@ -73,3 +73,4 @@ class AnalyticsEngine:
         except Exception as e:
             logger.error(f"Error getting status: {e}")
             return {"streaming": False, "moving": False, "data_available": False, "timestamp": 0}
+

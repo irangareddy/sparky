@@ -207,3 +207,4 @@ class RobotInterface(ABC):
     async def export_data(self, format_type: str = "json") -> Any:
         """Export collected data"""
         pass
+

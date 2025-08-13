@@ -1,23 +1,22 @@
-[project]
-name = "sparky"
+[tool.poetry]
+name = "go2-sparky"
 version = "0.0.2"
 description = "🤖 Comprehensive Go2 Robot Control Package"
-authors = [
-    {name = "Ranga Reddy Nukala",email = "itsmerr17@gmail.com"}
-]
+authors = ["Ranga Reddy Nukala <itsmerr17@gmail.com>"]
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-    "go2-webrtc-connect (>=0.2.0,<0.3.0)",
-    "typer[all] (>=0.16.0,<0.17.0)",
-    "rich (>=14.1.0,<15.0.0)"
-]
+packages = [{ include = "sparky", from = "src" }]
 
-[project.scripts]
-sparky = "sparky.cli:app"
+[tool.poetry.dependencies]
+python = ">=3.11"
+go2-webrtc-connect = "^0.2.0"
 
-[tool.poetry]
-packages = [{include = "sparky", from = "src"}]
+# CLI-only deps (optional)
+typer = { version = "^0.16.0", optional = true, extras = ["all"] }
+rich = { version = "^14.1.0", optional = true }
+
+[tool.poetry.extras]
+cli = ["typer", "rich"]
+all = ["typer", "rich"]
 
 [tool.poetry.scripts]
 sparky = "sparky.cli:app"

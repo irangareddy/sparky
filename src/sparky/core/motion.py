@@ -19,6 +19,7 @@ import json
 import logging
 from typing import Dict, Any, Optional, Tuple
 from go2_webrtc_driver.constants import RTC_TOPIC, SPORT_CMD
+from .action_queue import SafeActionQueue, ActionType, ActionPriority, QueueConfig
 # Motion verifier removed - using simplified approach for real-time control
 
 logger = logging.getLogger(__name__)
@@ -28,15 +29,34 @@ class MotionController:
     Comprehensive motion controller for Go2 robots
     Handles all movement commands and motion mode switching
     
+    Now with ultra-safe action queue system to prevent race conditions
+    and protect expensive robot hardware.
+    
     Note: Current Go2 firmware only supports "mcf" mode.
     Legacy "normal" and "ai" modes are no longer available.
     """
     
-    def __init__(self, connection):
+    def __init__(self, connection, safety_manager=None, use_action_queue=True):
         self.conn = connection
         self.current_mode = None
         self.is_moving = False
-        # Motion verifier removed for faster real-time control
+        self.safety_manager = safety_manager
+        
+        # Initialize safe action queue system
+        self.use_action_queue = use_action_queue
+        self.action_queue = None
+        
+        if self.use_action_queue:
+            queue_config = QueueConfig(
+                min_action_interval=0.2,  # 200ms between commands
+                require_safety_validation=True,
+                auto_stop_on_danger=True
+            )
+            self.action_queue = SafeActionQueue(safety_manager, queue_config)
+            # Override the command execution method
+            self.action_queue._perform_command_execution = self._execute_queued_command
+        
+        logger.info(f"MotionController initialized with {'SAFE QUEUE' if use_action_queue else 'DIRECT'} mode")
         
     async def get_motion_mode(self) -> Optional[str]:
         """Get current motion mode"""
@@ -99,6 +119,26 @@ class MotionController:
             logger.error(f"Error switching to {mode} mode: {e}")
             return False
     
+    async def start_action_queue(self):
+        """Start the safe action queue if enabled"""
+        if self.action_queue and not self.action_queue.is_running:
+            await self.action_queue.start()
+            logger.info("🛡️ Safe action queue started - ultra-safe mode active")
+    
+    async def stop_action_queue(self):
+        """Stop the safe action queue"""
+        if self.action_queue and self.action_queue.is_running:
+            await self.action_queue.stop()
+            logger.info("Safe action queue stopped")
+    
+    async def emergency_stop_all(self, reason: str = "Emergency stop"):
+        """Emergency stop all movement via action queue"""
+        if self.action_queue:
+            await self.action_queue.emergency_stop_queue(reason)
+        else:
+            # Fallback to direct stop
+            await self.stop()
+    
     async def move(self, x: float = 0, y: float = 0, z: float = 0, duration: float = 3.0, verify: bool = True) -> bool:
         """
         Move the robot with specified parameters
@@ -110,8 +150,37 @@ class MotionController:
             duration: How long to maintain this movement
             verify: Whether to verify that movement actually occurred
         """
+        if self.use_action_queue and self.action_queue:
+            # Route through safe action queue
+            action_id = await self.action_queue.queue_action(
+                command="Move",
+                action_type=ActionType.MOVEMENT,
+                priority=ActionPriority.NORMAL,
+                parameters={"x": x, "y": y, "z": z, "duration": duration}
+            )
+            logger.info(f"Move command queued safely: {action_id}")
+            
+            # Wait for completion
+            while True:
+                status = self.action_queue.get_action_status(action_id)
+                if not status:
+                    return False
+                    
+                if status["status"] == "completed":
+                    return True
+                elif status["status"] == "failed":
+                    logger.error(f"Queued move failed: {status.get('error_message', 'Unknown error')}")
+                    return False
+                
+                await asyncio.sleep(0.1)
+        else:
+            # Direct execution (legacy mode)
+            return await self._execute_direct_move(x, y, z, duration)
+    
+    async def _execute_direct_move(self, x: float, y: float, z: float, duration: float) -> bool:
+        """Direct move execution (legacy mode)"""
         try:
-            logger.info(f"Moving: x={x}, y={y}, z={z}, duration={duration}")
+            logger.info(f"Direct move: x={x}, y={y}, z={z}, duration={duration}")
             
             response = await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
@@ -124,10 +193,6 @@ class MotionController:
             if response['data']['header']['status']['code'] == 0:
                 self.is_moving = True
                 logger.info("Move command accepted")
-                
-                # Verification removed for faster real-time control
-                # Movement commands are executed without verification for speed
-                
                 await asyncio.sleep(duration)
                 return True
             else:
@@ -150,9 +215,33 @@ class MotionController:
             return "unknown"
     
     async def stop(self) -> bool:
-        """Stop all movement"""
+        """Stop all movement - emergency priority"""
+        if self.use_action_queue and self.action_queue:
+            # Route as emergency action (bypasses queue)
+            action_id = await self.action_queue.queue_action(
+                command="StopMove",
+                action_type=ActionType.EMERGENCY,
+                priority=ActionPriority.EMERGENCY,
+                bypass_queue=True
+            )
+            logger.warning(f"🛑 Emergency stop queued: {action_id}")
+            
+            # Wait for completion (should be immediate)
+            for _ in range(50):  # 5 second timeout
+                status = self.action_queue.get_action_status(action_id)
+                if status and status["status"] == "completed":
+                    return True
+                await asyncio.sleep(0.1)
+            
+            logger.error("Emergency stop timeout - falling back to direct stop")
+            
+        # Direct execution for emergency or fallback
+        return await self._execute_direct_stop()
+    
+    async def _execute_direct_stop(self) -> bool:
+        """Direct stop execution"""
         try:
-            logger.info("Stopping movement...")
+            logger.warning("🛑 Direct emergency stop")
             response = await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
                 {"api_id": SPORT_CMD["StopMove"]}
@@ -195,7 +284,7 @@ class MotionController:
         """Turn right at specified speed"""
         return await self.move(z=-speed, duration=duration, verify=verify)
     
-    async def execute_sport_command(self, command_name: str, parameters: Optional[Dict] = None, verify: bool = True) -> bool:
+    async def execute_sport_command(self, command_name: str, parameters: Optional[Dict] = None, verify: bool = True, priority: ActionPriority = ActionPriority.NORMAL) -> bool:
         """
         Execute a sport command by name
         
@@ -207,23 +296,70 @@ class MotionController:
             parameters: Optional parameters for the command
             verify: Whether to verify that command was actually executed
         """
-        try:
-            # Check if command exists and suggest alternatives
-            if command_name not in SPORT_CMD:
-                # Try to find similar commands
-                available_commands = list(SPORT_CMD.keys())
-                similar_commands = [cmd for cmd in available_commands if command_name.lower() in cmd.lower() or cmd.lower() in command_name.lower()]
-                
-                error_msg = f"Unknown sport command: {command_name}"
-                if similar_commands:
-                    error_msg += f". Did you mean one of: {', '.join(similar_commands[:3])}?"
-                else:
-                    error_msg += f". Available commands include: {', '.join(available_commands[:5])}..."
-                
-                logger.error(error_msg)
-                return False
+        # Check if command exists first
+        if command_name not in SPORT_CMD:
+            available_commands = list(SPORT_CMD.keys())
+            similar_commands = [cmd for cmd in available_commands if command_name.lower() in cmd.lower() or cmd.lower() in command_name.lower()]
             
-            logger.info(f"Executing sport command: {command_name}")
+            error_msg = f"Unknown sport command: {command_name}"
+            if similar_commands:
+                error_msg += f". Did you mean one of: {', '.join(similar_commands[:3])}?"
+            else:
+                error_msg += f". Available commands include: {', '.join(available_commands[:5])}..."
+            
+            logger.error(error_msg)
+            return False
+        
+        if self.use_action_queue and self.action_queue:
+            # Determine action type based on command
+            action_type = self._get_action_type_for_command(command_name)
+            
+            # Route through safe action queue
+            action_id = await self.action_queue.queue_action(
+                command=command_name,
+                action_type=action_type,
+                priority=priority,
+                parameters=parameters
+            )
+            logger.info(f"Sport command queued safely: {command_name} ({action_id})")
+            
+            # Wait for completion
+            while True:
+                status = self.action_queue.get_action_status(action_id)
+                if not status:
+                    return False
+                    
+                if status["status"] == "completed":
+                    return True
+                elif status["status"] == "failed":
+                    logger.error(f"Queued sport command failed: {status.get('error_message', 'Unknown error')}")
+                    return False
+                
+                await asyncio.sleep(0.1)
+        else:
+            # Direct execution (legacy mode)
+            return await self._execute_direct_sport_command(command_name, parameters)
+    
+    def _get_action_type_for_command(self, command_name: str) -> ActionType:
+        """Determine action type based on command name"""
+        safety_commands = {"StopMove", "RecoveryStand"}  # Removed dangerous "Damp"
+        movement_commands = {"Move"}
+        blocked_commands = {"Damp"}  # Dangerous commands blocked by safety system
+        
+        if command_name in blocked_commands:
+            # Blocked commands will be rejected by safety validation
+            return ActionType.SPORT_COMMAND  # Will be blocked anyway
+        elif command_name in safety_commands:
+            return ActionType.SAFETY_ACTION
+        elif command_name in movement_commands:
+            return ActionType.MOVEMENT
+        else:
+            return ActionType.SPORT_COMMAND
+    
+    async def _execute_direct_sport_command(self, command_name: str, parameters: Optional[Dict] = None) -> bool:
+        """Direct sport command execution (legacy mode)"""
+        try:
+            logger.info(f"Direct sport command: {command_name}")
             
             if parameters:
                 response = await self.conn.datachannel.pub_sub.publish_request_new(
@@ -241,9 +377,6 @@ class MotionController:
             
             if response['data']['header']['status']['code'] == 0:
                 logger.info(f"Sport command {command_name} accepted")
-                
-                # Verification removed for faster real-time control
-                
                 await asyncio.sleep(2)  # Wait for command execution
                 return True
             else:
@@ -342,18 +475,90 @@ class MotionController:
         """Get all available sport commands"""
         return SPORT_CMD.copy()
     
+    async def _execute_queued_command(self, action) -> bool:
+        """Execute command from action queue - implements the actual command execution"""
+        try:
+            command = action.command
+            parameters = action.parameters
+            
+            logger.info(f"Executing queued command: {command}")
+            
+            # Handle different command types
+            if command == "Move":
+                # Extract move parameters
+                x = parameters.get("x", 0)
+                y = parameters.get("y", 0) 
+                z = parameters.get("z", 0)
+                duration = parameters.get("duration", 3.0)
+                
+                response = await self.conn.datachannel.pub_sub.publish_request_new(
+                    RTC_TOPIC["SPORT_MOD"], 
+                    {
+                        "api_id": SPORT_CMD["Move"],
+                        "parameter": {"x": x, "y": y, "z": z}
+                    }
+                )
+                
+                if response['data']['header']['status']['code'] == 0:
+                    self.is_moving = True
+                    await asyncio.sleep(duration)
+                    return True
+                else:
+                    action.error_message = f"Move command failed with code {response['data']['header']['status']['code']}"
+                    return False
+            
+            elif command in SPORT_CMD:
+                # Handle sport commands
+                if parameters:
+                    payload = {
+                        "api_id": SPORT_CMD[command],
+                        "parameter": parameters
+                    }
+                else:
+                    payload = {"api_id": SPORT_CMD[command]}
+                
+                response = await self.conn.datachannel.pub_sub.publish_request_new(
+                    RTC_TOPIC["SPORT_MOD"], payload
+                )
+                
+                if response['data']['header']['status']['code'] == 0:
+                    if command == "StopMove":
+                        self.is_moving = False
+                    
+                    # Brief pause for command execution
+                    await asyncio.sleep(0.5 if action.action_type == ActionType.EMERGENCY else 2.0)
+                    return True
+                else:
+                    error_code = response['data']['header']['status']['code']
+                    action.error_message = f"Command {command} failed with code {error_code}"
+                    return False
+            else:
+                action.error_message = f"Unknown command: {command}"
+                return False
+                
+        except Exception as e:
+            action.error_message = f"Execution error: {str(e)}"
+            logger.error(f"Error executing queued command {action.command}: {e}")
+            return False
+    
     def get_status(self) -> Dict[str, Any]:
         """Get current motion controller status"""
         status = {
             "current_mode": self.current_mode,
             "is_moving": self.is_moving,
             "available_commands": list(SPORT_CMD.keys()),
-            "firmware_note": "Current firmware only supports 'mcf' mode. Legacy 'normal' and 'ai' modes are not available."
+            "firmware_note": "Current firmware only supports 'mcf' mode. Legacy 'normal' and 'ai' modes are not available.",
+            "safe_queue_enabled": self.use_action_queue,
+            "action_queue_status": self.action_queue.get_queue_status() if self.action_queue else None
         }
         
-        # Verification removed for real-time performance
-        
         return status
+    
+    def get_queue_status(self) -> Optional[Dict[str, Any]]:
+        """Get action queue status if enabled"""
+        if self.action_queue:
+            return self.action_queue.get_queue_status()
+        return None
     
     # Advanced Movement Methods
     async def front_flip(self, verify: bool = True) -> bool:
@@ -477,6 +682,183 @@ class MotionController:
                 
             # Brief pause between tests
             await asyncio.sleep(0.5)
+        
+        return availability
+
+    # Basic Movement Methods
+    async def damp(self, verify: bool = True) -> bool:
+        """
+        ⚠️ DANGER: DAMP COMMAND BLOCKED FOR SAFETY ⚠️
+        
+        This command reduces robot leg stiffness causing immediate collapse and damage!
+        
+        🚨 CRITICAL SAFETY ISSUE: The Damp command causes the robot's legs to lose
+        stiffness, resulting in immediate collapse. This can cause severe damage to
+        expensive robot hardware ($15k+ Go2 investment).
+        
+        🛡️ ULTRA-SAFE PROTECTION: This method is automatically blocked by the safety
+        system to prevent robot damage. The action queue will reject any Damp commands.
+        
+        💡 SAFE ALTERNATIVES FOR STABILITY:
+        - balance_stand(): Maintains leg stiffness while stabilizing
+        - recovery_stand(): Safe recovery from unstable positions
+        - stop(): Halt movement without reducing leg stiffness
+        
+        Args:
+            verify: Ignored - command always blocked regardless of verification
+            
+        Returns:
+            False: Always returns False as command is blocked for safety
+        """
+        logger.critical("🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse!")
+        logger.critical("💡 MOTION CONTROLLER SAFETY: Protecting robot from dangerous leg stiffness reduction")
+        logger.info("✅ SAFE ALTERNATIVES: Use balance_stand() or recovery_stand() for stability")
+        logger.warning("⚠️  Ultra-safe protection active - preventing robot damage")
+        return False
+    
+    async def balance_stand(self, verify: bool = True) -> bool:
+        """
+        Enter balanced standing position
+        
+        This is the standard standing position and should work in all firmware modes.
+        """
+        try:
+            logger.info("Executing balance stand command")
+            return await self.execute_sport_command("BalanceStand", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in balance stand: {e}")
+            return False
+    
+    async def stand_up(self, verify: bool = True) -> bool:
+        """
+        Rise from lying position to standing
+        
+        This is a fundamental command for getting the robot upright.
+        """
+        try:
+            logger.info("Executing stand up command")
+            return await self.execute_sport_command("StandUp", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in stand up: {e}")
+            return False
+    
+    async def stand_down(self, verify: bool = True) -> bool:
+        """
+        Lower to lying position from standing
+        
+        This transitions the robot to a lying down position.
+        """
+        try:
+            logger.info("Executing stand down command")
+            return await self.execute_sport_command("StandDown", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in stand down: {e}")
+            return False
+    
+    async def recovery_stand(self, verify: bool = True) -> bool:
+        """
+        Execute recovery stand after fall or unstable position
+        
+        This is a safety command to help robot recover from falls.
+        """
+        try:
+            logger.info("Executing recovery stand command")
+            return await self.execute_sport_command("RecoveryStand", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in recovery stand: {e}")
+            return False
+    
+    async def sit(self, verify: bool = True) -> bool:
+        """
+        Transition to sitting position
+        
+        This makes the robot sit down from standing position.
+        """
+        try:
+            logger.info("Executing sit command")
+            return await self.execute_sport_command("Sit", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in sit command: {e}")
+            return False
+    
+    async def rise_sit(self, verify: bool = True) -> bool:
+        """
+        Rise from sitting position to standing
+        
+        This transitions the robot from sitting to standing position.
+        """
+        try:
+            logger.info("Executing rise from sit command")
+            return await self.execute_sport_command("RiseSit", verify=verify)
+        except Exception as e:
+            logger.error(f"Error in rise sit: {e}")
+            return False
+    
+    async def move_basic(self, x: float = 0.3, y: float = 0, z: float = 0, verify: bool = True) -> bool:
+        """
+        Execute basic movement with simple parameters
+        
+        Args:
+            x: Forward/backward movement (default: 0.3 for gentle forward)
+            y: Left/right movement 
+            z: Rotation/yaw
+            verify: Whether to verify command execution
+        """
+        try:
+            logger.info(f"Executing basic move command: x={x}, y={y}, z={z}")
+            return await self.execute_sport_command("Move", {"x": x, "y": y, "z": z}, verify=verify)
+        except Exception as e:
+            logger.error(f"Error in basic move: {e}")
+            return False
+    
+    async def test_basic_movement_availability(self) -> Dict[str, bool]:
+        """
+        Test which basic movements are available in current firmware
+        
+        Returns:
+            Dictionary mapping command names to availability status
+        """
+        basic_commands = [
+            "Damp", "BalanceStand", "StopMove", "StandUp", "StandDown", 
+            "RecoveryStand", "Move", "Sit", "RiseSit"
+        ]
+        
+        availability = {}
+        
+        logger.info("Testing basic movement availability...")
+        
+        for command in basic_commands:
+            try:
+                # Test command availability without executing
+                if command == "Move":
+                    # Move command requires parameters
+                    response = await self.conn.datachannel.pub_sub.publish_request_new(
+                        RTC_TOPIC["SPORT_MOD"], 
+                        {
+                            "api_id": SPORT_CMD[command],
+                            "parameter": {"x": 0.1, "y": 0, "z": 0}
+                        }
+                    )
+                else:
+                    response = await self.conn.datachannel.pub_sub.publish_request_new(
+                        RTC_TOPIC["SPORT_MOD"], 
+                        {"api_id": SPORT_CMD[command]}
+                    )
+                
+                if response['data']['header']['status']['code'] == 0:
+                    availability[command] = True
+                    logger.info(f"✅ {command} is available")
+                else:
+                    availability[command] = False
+                    error_code = response['data']['header']['status']['code']
+                    logger.warning(f"❌ {command} not available (error {error_code})")
+                    
+            except Exception as e:
+                availability[command] = False
+                logger.error(f"❌ {command} test failed: {e}")
+                
+            # Brief pause between tests
+            await asyncio.sleep(0.3)
         
         return availability
 

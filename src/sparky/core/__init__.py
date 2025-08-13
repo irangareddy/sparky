@@ -49,3 +49,4 @@ __all__ = [
 __version__ = "1.0.0"
 __author__ = "Sparky Development Team"
 __description__ = "Advanced robot control and analytics for Go2 robots"
+
