@@ -428,11 +428,13 @@ class FallDetectionSystem:
             
             await asyncio.sleep(0.1)
             
-            # Engage damping for stability
+            # Engage safe stabilization maintaining leg stiffness
+            # NOTE: Previously used dangerous Damp which causes leg collapse
             await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
-                {"api_id": SPORT_CMD["Damp"]}
+                {"api_id": SPORT_CMD["RecoveryStand"]}
             )
+            logger.info("🛡️ Applied RecoveryStand for emergency stabilization (avoiding dangerous Damp)")
             
             await asyncio.sleep(0.2)
             
@@ -468,11 +470,13 @@ class FallDetectionSystem:
                 {"api_id": SPORT_CMD["StopMove"]}
             )
             
-            # 2. Maximum damping to reduce impact
+            # 2. Safe stabilization to maintain robot structure during fall
+            # NOTE: Previously used dangerous Damp which would worsen the fall
             await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
-                {"api_id": SPORT_CMD["Damp"]}
+                {"api_id": SPORT_CMD["RecoveryStand"]}
             )
+            logger.info("🛡️ Applied RecoveryStand for fall mitigation (avoiding dangerous Damp)")
             
             # 3. Try protective posture if possible
             try:
@@ -481,7 +485,7 @@ class FallDetectionSystem:
                     {"api_id": SPORT_CMD["Sit"]}
                 )
             except:
-                # If sitting fails, just maintain damping
+                # If sitting fails, at least we have safe stabilization active
                 pass
             
             logger.critical("Fall mitigation sequence completed - robot should be safer")

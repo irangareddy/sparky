@@ -530,11 +530,13 @@ class EnvironmentalSafetySystem:
                 {"api_id": SPORT_CMD["StopMove"]}
             )
             
-            # Engage damping for stability
+            # Engage safe stabilization maintaining leg stiffness
+            # NOTE: Previously used dangerous Damp which causes leg collapse
             await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
-                {"api_id": SPORT_CMD["Damp"]}
+                {"api_id": SPORT_CMD["BalanceStand"]}
             )
+            logger.info("🛡️ Applied BalanceStand for environmental stability (avoiding dangerous Damp)")
             
             self.stats["hazards_avoided"] += 1
             
@@ -552,10 +554,12 @@ class EnvironmentalSafetySystem:
                 {"api_id": SPORT_CMD["StopMove"]}
             )
             
+            # Use safe stabilization instead of dangerous Damp
             await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
-                {"api_id": SPORT_CMD["Damp"]}
+                {"api_id": SPORT_CMD["RecoveryStand"]}
             )
+            logger.info("🛡️ Applied RecoveryStand for collision response (avoiding dangerous Damp)")
             
             # Try to achieve safest possible position
             await asyncio.sleep(0.5)

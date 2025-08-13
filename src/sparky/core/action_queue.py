@@ -432,6 +432,16 @@ class SafeActionQueue:
     
     async def _validate_action_safety(self, action: QueuedAction) -> bool:
         """Validate action against safety constraints"""
+        
+        # CRITICAL SAFETY CHECK: Block dangerous Damp commands
+        if action.command == "Damp" or action.command.lower() == "damp":
+            logger.critical("🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse and damage!")
+            logger.critical("💡 SAFETY RECOMMENDATION: Use 'BalanceStand' or 'RecoveryStand' for safe stabilization")
+            logger.critical("⚠️  Damp reduces leg stiffness causing immediate robot collapse")
+            action.error_message = "Damp command blocked by safety system - causes robot damage"
+            self.stats["safety_blocks"] += 1
+            return False
+        
         if not self.safety_manager:
             logger.debug("No safety manager - skipping validation")
             return True

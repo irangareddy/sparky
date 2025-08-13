@@ -342,10 +342,14 @@ class MotionController:
     
     def _get_action_type_for_command(self, command_name: str) -> ActionType:
         """Determine action type based on command name"""
-        safety_commands = {"StopMove", "Damp", "RecoveryStand"}
+        safety_commands = {"StopMove", "RecoveryStand"}  # Removed dangerous "Damp"
         movement_commands = {"Move"}
+        blocked_commands = {"Damp"}  # Dangerous commands blocked by safety system
         
-        if command_name in safety_commands:
+        if command_name in blocked_commands:
+            # Blocked commands will be rejected by safety validation
+            return ActionType.SPORT_COMMAND  # Will be blocked anyway
+        elif command_name in safety_commands:
             return ActionType.SAFETY_ACTION
         elif command_name in movement_commands:
             return ActionType.MOVEMENT
@@ -684,16 +688,33 @@ class MotionController:
     # Basic Movement Methods
     async def damp(self, verify: bool = True) -> bool:
         """
-        Enable damping mode - reduces robot stiffness for safety
+        ⚠️ DANGER: DAMP COMMAND BLOCKED FOR SAFETY ⚠️
         
-        This is a high-priority basic command that should work in all firmware modes.
+        This command reduces robot leg stiffness causing immediate collapse and damage!
+        
+        🚨 CRITICAL SAFETY ISSUE: The Damp command causes the robot's legs to lose
+        stiffness, resulting in immediate collapse. This can cause severe damage to
+        expensive robot hardware ($15k+ Go2 investment).
+        
+        🛡️ ULTRA-SAFE PROTECTION: This method is automatically blocked by the safety
+        system to prevent robot damage. The action queue will reject any Damp commands.
+        
+        💡 SAFE ALTERNATIVES FOR STABILITY:
+        - balance_stand(): Maintains leg stiffness while stabilizing
+        - recovery_stand(): Safe recovery from unstable positions
+        - stop(): Halt movement without reducing leg stiffness
+        
+        Args:
+            verify: Ignored - command always blocked regardless of verification
+            
+        Returns:
+            False: Always returns False as command is blocked for safety
         """
-        try:
-            logger.info("Executing damp mode command")
-            return await self.execute_sport_command("Damp", verify=verify)
-        except Exception as e:
-            logger.error(f"Error in damp mode: {e}")
-            return False
+        logger.critical("🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse!")
+        logger.critical("💡 MOTION CONTROLLER SAFETY: Protecting robot from dangerous leg stiffness reduction")
+        logger.info("✅ SAFE ALTERNATIVES: Use balance_stand() or recovery_stand() for stability")
+        logger.warning("⚠️  Ultra-safe protection active - preventing robot damage")
+        return False
     
     async def balance_stand(self, verify: bool = True) -> bool:
         """

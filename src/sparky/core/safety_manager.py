@@ -325,11 +325,13 @@ class SafetyManager:
         """Handle danger state - defensive actions"""
         logger.warning("🚨 Safety DANGER state - implementing protective measures")
         try:
-            # Enable damping mode for stability
+            # Use BalanceStand for stability (SAFE: maintains leg stiffness)
+            # NOTE: Previously used dangerous Damp command which causes leg collapse
             await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
-                {"api_id": SPORT_CMD["Damp"]}
+                {"api_id": SPORT_CMD["BalanceStand"]}
             )
+            logger.info("🛡️ Applied BalanceStand for safe stabilization (avoiding dangerous Damp)")
             
             # Could add obstacle avoidance activation here
             # await self._enable_obstacle_avoidance()
@@ -409,13 +411,16 @@ class SafetyManager:
                 {"api_id": SPORT_CMD["StopMove"]}
             )
             
-            # Wait briefly then engage damping
+            # Wait briefly then engage safe stabilization
             await asyncio.sleep(0.1)
             
+            # Use RecoveryStand for emergency stabilization (SAFE: maintains leg stiffness)
+            # NOTE: Previously used dangerous Damp command which causes leg collapse
             await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
-                {"api_id": SPORT_CMD["Damp"]}
+                {"api_id": SPORT_CMD["RecoveryStand"]}
             )
+            logger.info("🛡️ Applied RecoveryStand for emergency stabilization (avoiding dangerous Damp)")
             
             # Trigger emergency safety event
             await self._trigger_safety_event(

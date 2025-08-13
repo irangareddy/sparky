@@ -18,7 +18,7 @@ This document provides a systematic approach to testing all Go2 robot functional
 
 | Command | API ID | Priority | Status | Notes |
 |---------|--------|----------|--------|-------|
-| Damp | 1001 | High | ⭕ | Basic damping mode |
+| Damp | 1001 | High | 🚨 | **DANGER: BLOCKED BY SAFETY** - Causes robot leg collapse! |
 | BalanceStand | 1002 | High | ⭕ | Standard balanced standing |
 | StopMove | 1003 | High | ⭕ | Emergency stop |
 | StandUp | 1004 | High | ⭕ | Rise from lying position |
@@ -463,16 +463,35 @@ robot.subscribe("rt/multiplestate")
 # Video stream test
 robot.subscribe("rt/api/videohub/request")
 
-# Advanced movements test (using Sparky Robot class)
+# Basic movements test (using Sparky Robot class)
 from sparky import Robot
 
+async def test_basic_movements():
+    robot = Robot()
+    await robot.connect()
+    
+    # Test availability first
+    availability = await robot.test_basic_movements()
+    print("Available basic movements:", availability)
+    
+    # Test individual basic movements (safe commands)
+    # await robot.damp()            # 🚨 DANGER: BLOCKED - Causes robot leg collapse!
+    await robot.balance_stand()     # High priority - standard standing
+    await robot.sit()               # Medium priority - sit down
+    await robot.rise_sit()          # Medium priority - rise from sitting
+    await robot.move_basic(0.2)     # High priority - gentle forward movement
+    await robot.command("StopMove") # High priority - emergency stop
+    
+    await robot.disconnect()
+
+# Advanced movements test (using Sparky Robot class)
 async def test_advanced_movements():
     robot = Robot()
     await robot.connect()
     
     # Test availability first
     availability = await robot.test_advanced_movements()
-    print("Available movements:", availability)
+    print("Available advanced movements:", availability)
     
     # Test individual movements (ensure safe environment!)
     await robot.front_jump()      # Medium priority
@@ -484,25 +503,34 @@ async def test_advanced_movements():
     await robot.disconnect()
 ```
 
-## Advanced Movement Testing Scripts
+## Movement Testing Scripts
 
 The following test scripts are available in the `/examples/` directory:
 
-1. **`advanced_movement_test.py`** - Comprehensive automated testing of all advanced movements
-2. **`advanced_movement_demo.py`** - Interactive demo for testing individual movements
-3. **`testing/motion_test.py`** - Basic motion testing framework
+### Basic Movement Testing
+1. **`testing/basic_movement_test.py`** - Comprehensive automated testing of all 9 basic movements
+2. **`basic_movement_demo.py`** - Interactive demo for testing individual basic movements
 
-### Running Advanced Movement Tests
+### Advanced Movement Testing  
+3. **`testing/advanced_movement_test.py`** - Comprehensive automated testing of all advanced movements
+4. **`advanced_movement_demo.py`** - Interactive demo for testing individual advanced movements
+
+### General Testing
+5. **`testing/motion_test.py`** - General motion testing framework
+
+### Running Movement Tests
 
 ```bash
-# Run comprehensive automated test
-python examples/testing/advanced_movement_test.py
+# Basic Movement Testing
+python examples/testing/basic_movement_test.py        # Test all 9 basic commands
+python examples/basic_movement_demo.py               # Interactive basic movement demo
 
-# Run interactive demo
-python examples/advanced_movement_demo.py
+# Advanced Movement Testing  
+python examples/testing/advanced_movement_test.py    # Test all 7 advanced commands
+python examples/advanced_movement_demo.py            # Interactive advanced movement demo
 
-# Run basic motion tests
-python examples/testing/motion_test.py
+# General Testing
+python examples/testing/motion_test.py               # General motion testing framework
 ```
 
 ### Safety Guidelines for Advanced Movement Testing

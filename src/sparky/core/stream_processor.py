@@ -408,3 +408,4 @@ class StreamProcessor:
         except Exception as e:
             logger.error(f"Error analyzing movement pattern: {e}")
             return {"error": str(e)}
+

@@ -570,18 +570,27 @@ class Robot(RobotInterface):
     # Basic Movement Methods
     async def damp(self) -> bool:
         """
-        Enable damping mode - reduces robot stiffness for safety
+        ⚠️ DANGER: DAMP COMMAND BLOCKED FOR SAFETY ⚠️
         
-        This is a high-priority basic command that should work in all firmware modes.
+        This command reduces robot leg stiffness causing immediate collapse and damage!
+        
+        🚨 SAFETY PROTECTION: This method is blocked by ultra-safe systems to prevent
+        expensive robot damage. The Damp command causes legs to lose stiffness and
+        the robot will immediately collapse, potentially causing $1000s in damage.
+        
+        💡 SAFE ALTERNATIVES:
+        - Use balance_stand() for stable positioning
+        - Use recovery_stand() after falls or instability  
+        - Use emergency_stop() to halt dangerous movements
+        
+        Returns:
+            False: Always returns False as command is blocked for safety
         """
-        if not self.motion:
-            logger.error("Not connected to robot")
-            return False
-        try:
-            return await self.motion.damp()
-        except Exception as e:
-            logger.error(f"Error executing damp: {e}")
-            return False
+        logger.critical("🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse and damage!")
+        logger.critical("💡 SAFETY PROTECTION: Damp reduces leg stiffness causing immediate robot collapse")
+        logger.info("✅ SAFE ALTERNATIVES: Use robot.balance_stand() or robot.recovery_stand() instead")
+        logger.warning("⚠️  Protecting your valuable robot investment from damage")
+        return False
     
     async def balance_stand(self) -> bool:
         """

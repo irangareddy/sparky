@@ -5,7 +5,7 @@ Layered emergency response to protect expensive robot hardware
 Implements escalating response levels:
 1. SOFT_STOP: Gentle deceleration and stabilization
 2. HARD_STOP: Immediate movement cessation
-3. EMERGENCY_DAMP: Reduce robot stiffness for safety
+3. EMERGENCY_STABILIZE: Safe stabilization maintaining leg stiffness
 4. PROTECTIVE_POSTURE: Move to safest possible position
 5. SAFE_SHUTDOWN: Complete system shutdown
 
@@ -28,7 +28,7 @@ class EmergencyLevel(Enum):
     NONE = 0
     SOFT_STOP = 1           # Gentle deceleration
     HARD_STOP = 2           # Immediate stop
-    EMERGENCY_DAMP = 3      # Reduce stiffness
+    EMERGENCY_STABILIZE = 3 # Safe stabilization (maintains leg stiffness)
     PROTECTIVE_POSTURE = 4  # Move to safe position
     SAFE_SHUTDOWN = 5       # Complete shutdown
 
@@ -133,8 +133,8 @@ class EmergencyResponseSystem:
                 success = await self._soft_stop()
             elif level == EmergencyLevel.HARD_STOP:
                 success = await self._hard_stop()
-            elif level == EmergencyLevel.EMERGENCY_DAMP:
-                success = await self._emergency_damp()
+            elif level == EmergencyLevel.EMERGENCY_STABILIZE:
+                success = await self._emergency_stabilize()
             elif level == EmergencyLevel.PROTECTIVE_POSTURE:
                 success = await self._protective_posture()
             elif level == EmergencyLevel.SAFE_SHUTDOWN:
@@ -223,24 +223,35 @@ class EmergencyResponseSystem:
             logger.error(f"Hard stop failed: {e}")
             return False
     
-    async def _emergency_damp(self) -> bool:
-        """Level 3: Reduce robot stiffness for safety"""
+    async def _emergency_stabilize(self) -> bool:
+        """Level 3: Safe emergency stabilization maintaining leg stiffness"""
         try:
-            logger.warning("Executing EMERGENCY DAMP - reducing stiffness")
+            logger.warning("Executing EMERGENCY STABILIZE - safe stabilization with leg stiffness")
             
             # First stop movement
             await self._hard_stop()
             
-            # Engage damping mode to reduce stiffness
+            # Engage safe stabilization (SAFE: maintains leg stiffness)
+            # NOTE: Previously used dangerous Damp which causes immediate leg collapse
             response = await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
-                {"api_id": SPORT_CMD["Damp"]}
+                {"api_id": SPORT_CMD["RecoveryStand"]}
             )
             
-            return response['data']['header']['status']['code'] == 0
+            if response['data']['header']['status']['code'] == 0:
+                logger.info("🛡️ Emergency stabilization with RecoveryStand successful (avoiding dangerous Damp)")
+                return True
+            else:
+                # Fallback to BalanceStand if RecoveryStand fails
+                logger.warning("RecoveryStand failed, trying BalanceStand as fallback")
+                response = await self.conn.datachannel.pub_sub.publish_request_new(
+                    RTC_TOPIC["SPORT_MOD"], 
+                    {"api_id": SPORT_CMD["BalanceStand"]}
+                )
+                return response['data']['header']['status']['code'] == 0
             
         except Exception as e:
-            logger.error(f"Emergency damp failed: {e}")
+            logger.error(f"Emergency stabilization failed: {e}")
             return False
     
     async def _protective_posture(self) -> bool:
@@ -248,8 +259,8 @@ class EmergencyResponseSystem:
         try:
             logger.warning("Executing PROTECTIVE POSTURE - safest position")
             
-            # Stop and damp first
-            await self._emergency_damp()
+            # Stop and stabilize first (safe alternative to dangerous damp)
+            await self._emergency_stabilize()
             await asyncio.sleep(1.0)
             
             # Try to move to sitting position (lower center of gravity)
@@ -280,7 +291,7 @@ class EmergencyResponseSystem:
             except Exception as e:
                 logger.error(f"Stand down also failed: {e}")
             
-            # If all else fails, at least we have damping active
+            # If all else fails, at least we have safe stabilization active
             return True
             
         except Exception as e:
@@ -296,12 +307,13 @@ class EmergencyResponseSystem:
             await self._protective_posture()
             await asyncio.sleep(2.0)
             
-            # Additional damping
+            # Additional safe stabilization (avoiding dangerous Damp)
             try:
                 await self.conn.datachannel.pub_sub.publish_request_new(
                     RTC_TOPIC["SPORT_MOD"], 
-                    {"api_id": SPORT_CMD["Damp"]}
+                    {"api_id": SPORT_CMD["BalanceStand"]}
                 )
+                logger.info("🛡️ Applied BalanceStand for final stabilization (avoiding dangerous Damp)")
             except:
                 pass
             
@@ -336,8 +348,8 @@ class EmergencyResponseSystem:
             # Recovery sequence based on current emergency level
             if self.current_level in [EmergencyLevel.SOFT_STOP, EmergencyLevel.HARD_STOP]:
                 success = await self._recovery_from_stop()
-            elif self.current_level == EmergencyLevel.EMERGENCY_DAMP:
-                success = await self._recovery_from_damp()
+            elif self.current_level == EmergencyLevel.EMERGENCY_STABILIZE:
+                success = await self._recovery_from_stabilize()
             elif self.current_level == EmergencyLevel.PROTECTIVE_POSTURE:
                 success = await self._recovery_from_posture()
             elif self.current_level == EmergencyLevel.SAFE_SHUTDOWN:
@@ -380,19 +392,24 @@ class EmergencyResponseSystem:
             logger.error(f"Recovery from stop failed: {e}")
             return False
     
-    async def _recovery_from_damp(self) -> bool:
-        """Recover from damp state"""
+    async def _recovery_from_stabilize(self) -> bool:
+        """Recover from emergency stabilization state"""
         try:
-            # Balance stand to restore normal stiffness
+            # Balance stand to ensure stable positioning (leg stiffness was maintained)
             response = await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
                 {"api_id": SPORT_CMD["BalanceStand"]}
             )
             
-            return response['data']['header']['status']['code'] == 0
+            if response['data']['header']['status']['code'] == 0:
+                logger.info("🛡️ Recovery from emergency stabilization successful")
+                return True
+            else:
+                logger.warning("Recovery balance stand failed, robot may need manual intervention")
+                return False
             
         except Exception as e:
-            logger.error(f"Recovery from damp failed: {e}")
+            logger.error(f"Recovery from emergency stabilization failed: {e}")
             return False
     
     async def _recovery_from_posture(self) -> bool:
