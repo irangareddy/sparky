@@ -16,10 +16,11 @@ from .utils.constants import ConnectionMethod
 
 logger = logging.getLogger(__name__)
 
+
 class Robot(RobotInterface):
     """
     High-level robot interface that simplifies common operations
-    
+
     This class provides a simplified API for basic robot operations,
     hiding the complexity of the underlying components while still
     allowing access to advanced features when needed.
@@ -33,22 +34,24 @@ class Robot(RobotInterface):
         self.analytics_engine: AnalyticsEngine | None = None
         self._data_streaming_active = False
 
-    async def connect(self,
-                     method: ConnectionMethod = ConnectionMethod.LOCALAP,
-                     ip: str | None = None,
-                     serial_number: str | None = None,
-                     username: str | None = None,
-                     password: str | None = None) -> bool:
+    async def connect(
+        self,
+        method: ConnectionMethod = ConnectionMethod.LOCALAP,
+        ip: str | None = None,
+        serial_number: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+    ) -> bool:
         """
         Connect to robot using simplified parameters
-        
+
         Args:
             method: Connection method to use
             ip: Robot IP address (for LocalSTA)
             serial_number: Robot serial number (for LocalSTA/Remote)
             username: Username (for Remote)
             password: Password (for Remote)
-            
+
         Returns:
             True if connection successful, False otherwise
         """
@@ -56,7 +59,7 @@ class Robot(RobotInterface):
             # Map interface enum to internal enum
             method_map = {
                 ConnectionMethod.LOCALAP: WebRTCConnectionMethod.LocalAP,
-                ConnectionMethod.ROUTER: WebRTCConnectionMethod.LocalSTA
+                ConnectionMethod.ROUTER: WebRTCConnectionMethod.LocalSTA,
             }
 
             webrtc_method = method_map[method]
@@ -67,7 +70,7 @@ class Robot(RobotInterface):
                 ip=ip,
                 serial_number=serial_number,
                 username=username,
-                password=password
+                password=password,
             )
 
             # Attempt connection
@@ -107,20 +110,22 @@ class Robot(RobotInterface):
             logger.error(f"Error disconnecting from robot: {e}")
             return False
 
-    async def move(self,
-                  direction: str,
-                  speed: float = 0.5,
-                  duration: float = 2.0,
-                  verify: bool = True) -> bool:
+    async def move(
+        self,
+        direction: str,
+        speed: float = 0.5,
+        duration: float = 2.0,
+        verify: bool = True,
+    ) -> bool:
         """
         Move robot in specified direction
-        
+
         Args:
             direction: Movement direction (forward, backward, left, right, turn-left, turn-right)
             speed: Movement speed (0.1 to 1.0)
             duration: Movement duration in seconds
             verify: Whether to verify movement actually occurred
-            
+
         Returns:
             True if movement successful, False otherwise
         """
@@ -156,11 +161,11 @@ class Robot(RobotInterface):
     async def command(self, command: str, verify: bool = True) -> bool:
         """
         Execute a sport command
-        
+
         Args:
             command: Sport command to execute (hello, sit, standup, etc.)
             verify: Whether to verify command execution
-            
+
         Returns:
             True if command successful, False otherwise
         """
@@ -181,13 +186,15 @@ class Robot(RobotInterface):
                 "leftflip": "LeftFlip",
                 "rightflip": "RightFlip",
                 "frontjump": "FrontJump",
-                "frontpounce": "FrontPounce"
+                "frontpounce": "FrontPounce",
             }
 
             # Normalize command name
             normalized_command = command_mapping.get(command.lower(), command.title())
 
-            return await self.motion.execute_sport_command(normalized_command, verify=verify)
+            return await self.motion.execute_sport_command(
+                normalized_command, verify=verify
+            )
         except Exception as e:
             logger.error(f"Error executing command {command}: {e}")
             return False
@@ -195,7 +202,7 @@ class Robot(RobotInterface):
     async def is_moving(self) -> bool:
         """
         Check if robot is currently moving
-        
+
         Returns:
             True if robot is moving, False otherwise
         """
@@ -218,7 +225,7 @@ class Robot(RobotInterface):
     async def get_status(self) -> dict[str, Any]:
         """
         Get comprehensive robot status
-        
+
         Returns:
             Dictionary containing robot status information
         """
@@ -226,7 +233,7 @@ class Robot(RobotInterface):
             "connected": self.connection is not None and self.connection.is_connected,
             "data_streaming": self._data_streaming_active,
             "motion_available": self.motion is not None,
-            "analytics_available": self.analytics_engine is not None
+            "analytics_available": self.analytics_engine is not None,
         }
 
         if self.connection:
@@ -252,10 +259,12 @@ class Robot(RobotInterface):
 
         return status
 
-    async def start_data_stream(self, buffer_size: int = 1000, analytics: bool = True) -> None:
+    async def start_data_stream(
+        self, buffer_size: int = 1000, analytics: bool = True
+    ) -> None:
         """
         Start data streaming and analytics
-        
+
         Args:
             buffer_size: Size of data buffer
             analytics: Whether to enable analytics engine
@@ -309,10 +318,10 @@ class Robot(RobotInterface):
     async def export_data(self, format_type: str = "json") -> Any:
         """
         Export collected data
-        
+
         Args:
             format_type: Export format ("json" or "csv")
-            
+
         Returns:
             Exported data in specified format
         """
@@ -357,7 +366,9 @@ class Robot(RobotInterface):
         except Exception as e:
             logger.error(f"Error stopping safety systems: {e}")
 
-    async def emergency_stop(self, reason: str = "User requested emergency stop") -> bool:
+    async def emergency_stop(
+        self, reason: str = "User requested emergency stop"
+    ) -> bool:
         """Ultra-safe emergency stop - highest priority"""
         logger.critical(f"🛑 EMERGENCY STOP: {reason}")
 
@@ -393,7 +404,9 @@ class Robot(RobotInterface):
         """Pause the action queue (emergency actions still execute)"""
         if self.motion and self.motion.action_queue:
             await self.motion.action_queue.pause()
-            logger.warning("⏸️ Action queue paused - only emergency actions will execute")
+            logger.warning(
+                "⏸️ Action queue paused - only emergency actions will execute"
+            )
 
     async def resume_queue(self):
         """Resume the action queue"""
@@ -443,7 +456,7 @@ class Robot(RobotInterface):
     async def front_flip(self) -> bool:
         """
         Execute front flip/somersault
-        
+
         WARNING: This command may not be available in current firmware.
         Requires adequate space and soft landing area.
         """
@@ -459,7 +472,7 @@ class Robot(RobotInterface):
     async def back_flip(self) -> bool:
         """
         Execute back flip/somersault
-        
+
         WARNING: This command may not be available in current firmware.
         Requires adequate space and soft landing area.
         """
@@ -475,7 +488,7 @@ class Robot(RobotInterface):
     async def left_flip(self) -> bool:
         """
         Execute left side flip
-        
+
         WARNING: This command may not be available in current firmware.
         Requires adequate space and soft landing area.
         """
@@ -491,7 +504,7 @@ class Robot(RobotInterface):
     async def right_flip(self) -> bool:
         """
         Execute right side flip
-        
+
         WARNING: This command may not be available in current firmware.
         Requires adequate space and soft landing area.
         """
@@ -507,7 +520,7 @@ class Robot(RobotInterface):
     async def front_jump(self) -> bool:
         """
         Execute forward jump
-        
+
         This command has medium priority and may work in current firmware.
         """
         if not self.motion:
@@ -522,7 +535,7 @@ class Robot(RobotInterface):
     async def front_pounce(self) -> bool:
         """
         Execute pouncing motion
-        
+
         This command has medium priority and may work in current firmware.
         """
         if not self.motion:
@@ -537,7 +550,7 @@ class Robot(RobotInterface):
     async def handstand(self, enable: bool = True) -> bool:
         """
         Enable/disable handstand mode
-        
+
         WARNING: This command may not be available in current firmware.
         Previous versions required "ai" mode, which is no longer available.
         """
@@ -553,7 +566,7 @@ class Robot(RobotInterface):
     async def test_advanced_movements(self) -> dict[str, bool]:
         """
         Test which advanced movements are available
-        
+
         Returns:
             Dictionary mapping command names to availability status
         """
@@ -570,31 +583,37 @@ class Robot(RobotInterface):
     async def damp(self) -> bool:
         """
         ⚠️ DANGER: DAMP COMMAND BLOCKED FOR SAFETY ⚠️
-        
+
         This command reduces robot leg stiffness causing immediate collapse and damage!
-        
+
         🚨 SAFETY PROTECTION: This method is blocked by ultra-safe systems to prevent
         expensive robot damage. The Damp command causes legs to lose stiffness and
         the robot will immediately collapse, potentially causing $1000s in damage.
-        
+
         💡 SAFE ALTERNATIVES:
         - Use balance_stand() for stable positioning
-        - Use recovery_stand() after falls or instability  
+        - Use recovery_stand() after falls or instability
         - Use emergency_stop() to halt dangerous movements
-        
+
         Returns:
             False: Always returns False as command is blocked for safety
         """
-        logger.critical("🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse and damage!")
-        logger.critical("💡 SAFETY PROTECTION: Damp reduces leg stiffness causing immediate robot collapse")
-        logger.info("✅ SAFE ALTERNATIVES: Use robot.balance_stand() or robot.recovery_stand() instead")
+        logger.critical(
+            "🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse and damage!"
+        )
+        logger.critical(
+            "💡 SAFETY PROTECTION: Damp reduces leg stiffness causing immediate robot collapse"
+        )
+        logger.info(
+            "✅ SAFE ALTERNATIVES: Use robot.balance_stand() or robot.recovery_stand() instead"
+        )
         logger.warning("⚠️  Protecting your valuable robot investment from damage")
         return False
 
     async def balance_stand(self) -> bool:
         """
         Enter balanced standing position
-        
+
         This is the standard standing position and should work in all firmware modes.
         """
         if not self.motion:
@@ -609,7 +628,7 @@ class Robot(RobotInterface):
     async def recovery_stand(self) -> bool:
         """
         Execute recovery stand after fall or unstable position
-        
+
         This is a safety command to help robot recover from falls.
         """
         if not self.motion:
@@ -618,9 +637,9 @@ class Robot(RobotInterface):
         try:
             # Recovery commands get high priority for safety
             from .core.action_queue import ActionPriority
+
             return await self.motion.execute_sport_command(
-                "RecoveryStand",
-                priority=ActionPriority.HIGH
+                "RecoveryStand", priority=ActionPriority.HIGH
             )
         except Exception as e:
             logger.error(f"Error executing recovery stand: {e}")
@@ -629,7 +648,7 @@ class Robot(RobotInterface):
     async def stand_down(self) -> bool:
         """
         Lower to lying position from standing
-        
+
         This transitions the robot to a lying down position.
         """
         if not self.motion:
@@ -644,7 +663,7 @@ class Robot(RobotInterface):
     async def rise_sit(self) -> bool:
         """
         Rise from sitting position to standing
-        
+
         This transitions the robot from sitting to standing position.
         """
         if not self.motion:
@@ -659,10 +678,10 @@ class Robot(RobotInterface):
     async def move_basic(self, x: float = 0.3, y: float = 0, z: float = 0) -> bool:
         """
         Execute basic movement with simple parameters
-        
+
         Args:
             x: Forward/backward movement (default: 0.3 for gentle forward)
-            y: Left/right movement 
+            y: Left/right movement
             z: Rotation/yaw
         """
         if not self.motion:
@@ -677,7 +696,7 @@ class Robot(RobotInterface):
     async def test_basic_movements(self) -> dict[str, bool]:
         """
         Test which basic movements are available
-        
+
         Returns:
             Dictionary mapping command names to availability status
         """
@@ -699,15 +718,18 @@ class Robot(RobotInterface):
         """Async context manager exit"""
         await self.disconnect()
 
+
 # Convenience functions for quick usage
-async def connect_robot(method: ConnectionMethod = ConnectionMethod.LOCALAP, **kwargs) -> Robot:
+async def connect_robot(
+    method: ConnectionMethod = ConnectionMethod.LOCALAP, **kwargs
+) -> Robot:
     """
     Quick function to connect to a robot
-    
+
     Args:
         method: Connection method to use
         **kwargs: Additional connection parameters
-        
+
     Returns:
         Connected Robot instance
     """
@@ -716,4 +738,3 @@ async def connect_robot(method: ConnectionMethod = ConnectionMethod.LOCALAP, **k
     if not success:
         raise RuntimeError("Failed to connect to robot")
     return robot
-

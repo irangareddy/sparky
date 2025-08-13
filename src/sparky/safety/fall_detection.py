@@ -24,67 +24,83 @@ from go2_webrtc_driver.constants import RTC_TOPIC, SPORT_CMD
 
 logger = logging.getLogger(__name__)
 
+
 class FallRiskLevel(Enum):
     """Fall risk assessment levels"""
-    STABLE = 0          # Robot is stable and secure
-    LOW_RISK = 1        # Minor stability concerns
-    MODERATE_RISK = 2   # Significant stability issues
-    HIGH_RISK = 3       # Immediate fall risk detected
-    FALLING = 4         # Fall in progress - emergency response
+
+    STABLE = 0  # Robot is stable and secure
+    LOW_RISK = 1  # Minor stability concerns
+    MODERATE_RISK = 2  # Significant stability issues
+    HIGH_RISK = 3  # Immediate fall risk detected
+    FALLING = 4  # Fall in progress - emergency response
+
 
 class StabilityTrigger(Enum):
     """What triggered stability concerns"""
-    ORIENTATION = "orientation"      # Excessive tilt
-    ACCELERATION = "acceleration"    # Sudden acceleration changes
-    GYROSCOPE = "gyroscope"         # Rapid rotation
-    CONTACT = "contact"             # Loss of ground contact
+
+    ORIENTATION = "orientation"  # Excessive tilt
+    ACCELERATION = "acceleration"  # Sudden acceleration changes
+    GYROSCOPE = "gyroscope"  # Rapid rotation
+    CONTACT = "contact"  # Loss of ground contact
     COMMAND_FAILURE = "command_failure"  # Control commands failing
-    EXTERNAL_FORCE = "external_force"    # External disturbance
-    TERRAIN = "terrain"             # Unstable terrain detected
-    VELOCITY = "velocity"           # Unsafe movement speed
+    EXTERNAL_FORCE = "external_force"  # External disturbance
+    TERRAIN = "terrain"  # Unstable terrain detected
+    VELOCITY = "velocity"  # Unsafe movement speed
+
 
 @dataclass
 class OrientationData:
     """Robot orientation information"""
-    roll: float = 0.0       # Roll angle (degrees)
-    pitch: float = 0.0      # Pitch angle (degrees)
-    yaw: float = 0.0        # Yaw angle (degrees)
+
+    roll: float = 0.0  # Roll angle (degrees)
+    pitch: float = 0.0  # Pitch angle (degrees)
+    yaw: float = 0.0  # Yaw angle (degrees)
     timestamp: float = 0.0
+
 
 @dataclass
 class MotionData:
     """Robot motion information"""
+
     linear_velocity: tuple[float, float, float] = (0.0, 0.0, 0.0)  # x, y, z
-    angular_velocity: tuple[float, float, float] = (0.0, 0.0, 0.0) # roll, pitch, yaw rates
-    acceleration: tuple[float, float, float] = (0.0, 0.0, 0.0)     # x, y, z acceleration
+    angular_velocity: tuple[float, float, float] = (
+        0.0,
+        0.0,
+        0.0,
+    )  # roll, pitch, yaw rates
+    acceleration: tuple[float, float, float] = (0.0, 0.0, 0.0)  # x, y, z acceleration
     timestamp: float = 0.0
+
 
 @dataclass
 class StabilityLimits:
     """Configurable stability thresholds"""
+
     # Orientation limits (degrees)
-    stable_roll_limit: float = 8.0          # Safe roll range
-    stable_pitch_limit: float = 8.0         # Safe pitch range
-    warning_roll_limit: float = 15.0        # Warning roll threshold
-    warning_pitch_limit: float = 15.0       # Warning pitch threshold
-    danger_roll_limit: float = 25.0         # Danger roll threshold
-    danger_pitch_limit: float = 25.0        # Danger pitch threshold
-    critical_roll_limit: float = 35.0       # Critical roll limit
-    critical_pitch_limit: float = 35.0      # Critical pitch limit
+    stable_roll_limit: float = 8.0  # Safe roll range
+    stable_pitch_limit: float = 8.0  # Safe pitch range
+    warning_roll_limit: float = 15.0  # Warning roll threshold
+    warning_pitch_limit: float = 15.0  # Warning pitch threshold
+    danger_roll_limit: float = 25.0  # Danger roll threshold
+    danger_pitch_limit: float = 25.0  # Danger pitch threshold
+    critical_roll_limit: float = 35.0  # Critical roll limit
+    critical_pitch_limit: float = 35.0  # Critical pitch limit
 
     # Motion limits
     max_safe_angular_velocity: float = 30.0  # degrees/second
-    max_safe_acceleration: float = 2.0       # m/s²
-    max_safe_linear_velocity: float = 1.0    # m/s
+    max_safe_acceleration: float = 2.0  # m/s²
+    max_safe_linear_velocity: float = 1.0  # m/s
 
     # Timing limits
-    stability_check_interval: float = 0.02   # 50Hz monitoring
-    prediction_window: float = 0.5           # 500ms prediction
-    recovery_timeout: float = 3.0            # Recovery attempt timeout
+    stability_check_interval: float = 0.02  # 50Hz monitoring
+    prediction_window: float = 0.5  # 500ms prediction
+    recovery_timeout: float = 3.0  # Recovery attempt timeout
+
 
 @dataclass
 class FallEvent:
     """Fall detection event record"""
+
     risk_level: FallRiskLevel
     trigger: StabilityTrigger
     message: str
@@ -94,10 +110,11 @@ class FallEvent:
     response_taken: str | None = None
     prevention_successful: bool = False
 
+
 class FallDetectionSystem:
     """
     Advanced fall detection and prevention system
-    
+
     Provides real-time monitoring and predictive fall prevention to protect
     expensive robot hardware from damage due to falls and instability.
     """
@@ -112,9 +129,9 @@ class FallDetectionSystem:
         self.current_risk_level = FallRiskLevel.STABLE
 
         # Data buffers for trend analysis
-        self.orientation_history = deque(maxlen=50)    # 1 second at 50Hz
-        self.motion_history = deque(maxlen=50)         # 1 second at 50Hz
-        self.stability_history = deque(maxlen=25)      # 500ms at 50Hz
+        self.orientation_history = deque(maxlen=50)  # 1 second at 50Hz
+        self.motion_history = deque(maxlen=50)  # 1 second at 50Hz
+        self.stability_history = deque(maxlen=25)  # 500ms at 50Hz
 
         # Fall event tracking
         self.fall_events: list[FallEvent] = []
@@ -127,14 +144,16 @@ class FallDetectionSystem:
             "fall_events_total": 0,
             "false_positives": 0,
             "monitoring_uptime": 0,
-            "start_time": time.time()
+            "start_time": time.time(),
         }
 
         # Prediction algorithms
         self.stability_score = 1.0  # 1.0 = fully stable, 0.0 = falling
-        self.fall_probability = 0.0 # 0.0 = no risk, 1.0 = certain fall
+        self.fall_probability = 0.0  # 0.0 = no risk, 1.0 = certain fall
 
-        logger.info("Fall Detection & Prevention System initialized - protecting robot investment")
+        logger.info(
+            "Fall Detection & Prevention System initialized - protecting robot investment"
+        )
 
     async def start_monitoring(self):
         """Start real-time fall detection monitoring"""
@@ -166,7 +185,9 @@ class FallDetectionSystem:
             while self.is_monitoring:
                 try:
                     # Update statistics
-                    self.stats["monitoring_uptime"] = time.time() - self.stats["start_time"]
+                    self.stats["monitoring_uptime"] = (
+                        time.time() - self.stats["start_time"]
+                    )
 
                     # Collect current sensor data
                     orientation, motion = await self._collect_sensor_data()
@@ -198,7 +219,9 @@ class FallDetectionSystem:
         except Exception as e:
             logger.critical(f"Critical error in fall detection: {e}")
 
-    async def _collect_sensor_data(self) -> tuple[OrientationData | None, MotionData | None]:
+    async def _collect_sensor_data(
+        self,
+    ) -> tuple[OrientationData | None, MotionData | None]:
         """Collect orientation and motion data from robot sensors"""
         try:
             # In real implementation, this would read from robot state topics
@@ -209,17 +232,17 @@ class FallDetectionSystem:
             # Placeholder for actual sensor data collection
             # This would integrate with rt/lf/lowstate and rt/multiplestate topics
             orientation = OrientationData(
-                roll=0.0,    # Would read from actual IMU
-                pitch=0.0,   # Would read from actual IMU
-                yaw=0.0,     # Would read from actual IMU
-                timestamp=current_time
+                roll=0.0,  # Would read from actual IMU
+                pitch=0.0,  # Would read from actual IMU
+                yaw=0.0,  # Would read from actual IMU
+                timestamp=current_time,
             )
 
             motion = MotionData(
                 linear_velocity=(0.0, 0.0, 0.0),  # Would read from actual sensors
-                angular_velocity=(0.0, 0.0, 0.0), # Would read from actual sensors
-                acceleration=(0.0, 0.0, 0.0),     # Would read from actual sensors
-                timestamp=current_time
+                angular_velocity=(0.0, 0.0, 0.0),  # Would read from actual sensors
+                acceleration=(0.0, 0.0, 0.0),  # Would read from actual sensors
+                timestamp=current_time,
             )
 
             return orientation, motion
@@ -237,24 +260,26 @@ class FallDetectionSystem:
         current_motion = self.motion_history[-1]
 
         # Calculate stability score based on multiple factors
-        orientation_stability = self._calculate_orientation_stability(current_orientation)
+        orientation_stability = self._calculate_orientation_stability(
+            current_orientation
+        )
         motion_stability = self._calculate_motion_stability(current_motion)
         trend_stability = self._calculate_trend_stability()
 
         # Weighted combination of stability factors
         self.stability_score = (
-            orientation_stability * 0.4 +
-            motion_stability * 0.4 +
-            trend_stability * 0.2
+            orientation_stability * 0.4 + motion_stability * 0.4 + trend_stability * 0.2
         )
 
         # Add to stability history
-        self.stability_history.append({
-            "score": self.stability_score,
-            "timestamp": time.time(),
-            "orientation": current_orientation,
-            "motion": current_motion
-        })
+        self.stability_history.append(
+            {
+                "score": self.stability_score,
+                "timestamp": time.time(),
+                "orientation": current_orientation,
+                "motion": current_motion,
+            }
+        )
 
     def _calculate_orientation_stability(self, orientation: OrientationData) -> float:
         """Calculate stability score based on orientation"""
@@ -303,7 +328,9 @@ class FallDetectionSystem:
                 return 1.0  # Assume stable if not enough history
 
             # Look at stability trend over last 100ms
-            recent_scores = [entry["score"] for entry in list(self.stability_history)[-5:]]
+            recent_scores = [
+                entry["score"] for entry in list(self.stability_history)[-5:]
+            ]
 
             # Calculate trend (negative = getting worse)
             trend = (recent_scores[-1] - recent_scores[0]) / len(recent_scores)
@@ -336,8 +363,10 @@ class FallDetectionSystem:
                     self.fall_probability = max(self.fall_probability, 0.8)
 
                 # Critical orientations = very high fall probability
-                if (abs(current_orientation.roll) > self.limits.critical_roll_limit or
-                    abs(current_orientation.pitch) > self.limits.critical_pitch_limit):
+                if (
+                    abs(current_orientation.roll) > self.limits.critical_roll_limit
+                    or abs(current_orientation.pitch) > self.limits.critical_pitch_limit
+                ):
                     self.fall_probability = 0.95
 
             # Determine risk level
@@ -356,13 +385,17 @@ class FallDetectionSystem:
 
             # Log risk level changes
             if self.current_risk_level != old_risk_level:
-                logger.warning(f"Fall risk changed: {old_risk_level.name} → {self.current_risk_level.name} "
-                             f"(probability: {self.fall_probability:.2f})")
+                logger.warning(
+                    f"Fall risk changed: {old_risk_level.name} → {self.current_risk_level.name} "
+                    f"(probability: {self.fall_probability:.2f})"
+                )
 
                 # Create fall event for significant risk increases
                 if self.current_risk_level.value > FallRiskLevel.LOW_RISK.value:
-                    await self._create_fall_event(StabilityTrigger.ORIENTATION,
-                                                f"Fall risk increased to {self.current_risk_level.name}")
+                    await self._create_fall_event(
+                        StabilityTrigger.ORIENTATION,
+                        f"Fall risk increased to {self.current_risk_level.name}",
+                    )
 
         except Exception as e:
             logger.error(f"Error predicting fall risk: {e}")
@@ -398,11 +431,10 @@ class FallDetectionSystem:
 
             # Engage balance stand for stability
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
 
-            if response['data']['header']['status']['code'] == 0:
+            if response["data"]["header"]["status"]["code"] == 0:
                 self.stats["falls_prevented"] += 1
                 logger.info("✅ Preventive stabilization successful")
             else:
@@ -422,8 +454,7 @@ class FallDetectionSystem:
 
             # First stop any movement
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
             )
 
             await asyncio.sleep(0.1)
@@ -431,24 +462,26 @@ class FallDetectionSystem:
             # Engage safe stabilization maintaining leg stiffness
             # NOTE: Previously used dangerous Damp which causes leg collapse
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
             )
-            logger.info("🛡️ Applied RecoveryStand for emergency stabilization (avoiding dangerous Damp)")
+            logger.info(
+                "🛡️ Applied RecoveryStand for emergency stabilization (avoiding dangerous Damp)"
+            )
 
             await asyncio.sleep(0.2)
 
             # Try to achieve stable standing position
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
 
-            if response['data']['header']['status']['code'] == 0:
+            if response["data"]["header"]["status"]["code"] == 0:
                 self.stats["falls_prevented"] += 1
                 logger.info("✅ Emergency stabilization successful")
             else:
-                logger.critical("❌ Emergency stabilization failed - escalating to fall mitigation")
+                logger.critical(
+                    "❌ Emergency stabilization failed - escalating to fall mitigation"
+                )
                 await self._fall_mitigation()
 
         except Exception as e:
@@ -466,29 +499,30 @@ class FallDetectionSystem:
             # Immediate protective sequence
             # 1. Stop all movement
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
             )
 
             # 2. Safe stabilization to maintain robot structure during fall
             # NOTE: Previously used dangerous Damp which would worsen the fall
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
             )
-            logger.info("🛡️ Applied RecoveryStand for fall mitigation (avoiding dangerous Damp)")
+            logger.info(
+                "🛡️ Applied RecoveryStand for fall mitigation (avoiding dangerous Damp)"
+            )
 
             # 3. Try protective posture if possible
             try:
                 await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["SPORT_MOD"],
-                    {"api_id": SPORT_CMD["Sit"]}
+                    RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Sit"]}
                 )
-            except:
+            except Exception:
                 # If sitting fails, at least we have safe stabilization active
                 pass
 
-            logger.critical("Fall mitigation sequence completed - robot should be safer")
+            logger.critical(
+                "Fall mitigation sequence completed - robot should be safer"
+            )
 
         except Exception as e:
             logger.critical(f"CRITICAL: Fall mitigation failed: {e}")
@@ -498,8 +532,14 @@ class FallDetectionSystem:
     async def _create_fall_event(self, trigger: StabilityTrigger, message: str):
         """Create a fall event record"""
         try:
-            current_orientation = self.orientation_history[-1] if self.orientation_history else OrientationData()
-            current_motion = self.motion_history[-1] if self.motion_history else MotionData()
+            current_orientation = (
+                self.orientation_history[-1]
+                if self.orientation_history
+                else OrientationData()
+            )
+            current_motion = (
+                self.motion_history[-1] if self.motion_history else MotionData()
+            )
 
             event = FallEvent(
                 risk_level=self.current_risk_level,
@@ -507,7 +547,7 @@ class FallDetectionSystem:
                 message=message,
                 orientation=current_orientation,
                 motion=current_motion,
-                timestamp=time.time()
+                timestamp=time.time(),
             )
 
             self.fall_events.append(event)
@@ -541,17 +581,25 @@ class FallDetectionSystem:
             "active_prevention": self.active_prevention,
             "monitoring_active": self.is_monitoring,
             "current_orientation": {
-                "roll": self.orientation_history[-1].roll if self.orientation_history else 0,
-                "pitch": self.orientation_history[-1].pitch if self.orientation_history else 0,
-                "yaw": self.orientation_history[-1].yaw if self.orientation_history else 0
-            } if self.orientation_history else None,
+                "roll": self.orientation_history[-1].roll
+                if self.orientation_history
+                else 0,
+                "pitch": self.orientation_history[-1].pitch
+                if self.orientation_history
+                else 0,
+                "yaw": self.orientation_history[-1].yaw
+                if self.orientation_history
+                else 0,
+            }
+            if self.orientation_history
+            else None,
             "recent_events": [
                 {
                     "risk_level": event.risk_level.name,
                     "trigger": event.trigger.value,
                     "message": event.message,
                     "timestamp": event.timestamp,
-                    "prevention_successful": event.prevention_successful
+                    "prevention_successful": event.prevention_successful,
                 }
                 for event in self.fall_events[-5:]  # Last 5 events
             ],
@@ -562,8 +610,8 @@ class FallDetectionSystem:
                 "warning_roll_limit": self.limits.warning_roll_limit,
                 "warning_pitch_limit": self.limits.warning_pitch_limit,
                 "danger_roll_limit": self.limits.danger_roll_limit,
-                "danger_pitch_limit": self.limits.danger_pitch_limit
-            }
+                "danger_pitch_limit": self.limits.danger_pitch_limit,
+            },
         }
 
     async def test_fall_detection(self) -> dict[str, bool]:
@@ -575,7 +623,9 @@ class FallDetectionSystem:
         try:
             # Test sensor data collection
             orientation, motion = await self._collect_sensor_data()
-            results["sensor_collection"] = orientation is not None and motion is not None
+            results["sensor_collection"] = (
+                orientation is not None and motion is not None
+            )
 
             # Test stability analysis
             if orientation and motion:
@@ -607,4 +657,6 @@ class FallDetectionSystem:
     def __del__(self):
         """Cleanup when fall detection system is destroyed"""
         if self.is_monitoring:
-            logger.warning("Fall detection destroyed while monitoring - this could be unsafe")
+            logger.warning(
+                "Fall detection destroyed while monitoring - this could be unsafe"
+            )

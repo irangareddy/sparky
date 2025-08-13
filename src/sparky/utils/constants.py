@@ -8,6 +8,7 @@ from enum import Enum
 
 class MovementDirection(Enum):
     """Robot movement directions"""
+
     FORWARD = "forward"
     BACKWARD = "backward"
     LEFT = "left"
@@ -16,17 +17,22 @@ class MovementDirection(Enum):
     TURN_RIGHT = "turn_right"
     STATIONARY = "stationary"
 
+
 class MovementQuality(Enum):
     """Movement quality assessment"""
+
     EXCELLENT = "excellent"
     GOOD = "good"
     FAIR = "fair"
     POOR = "poor"
 
+
 class ConnectionMethod(Enum):
     """Robot connection methods"""
+
     LOCALAP = "localap"  # Local AP mode
-    ROUTER = "router"    # Router mode
+    ROUTER = "router"  # Router mode
+
 
 # Robot control constants
 DEFAULT_SPEED = 0.3

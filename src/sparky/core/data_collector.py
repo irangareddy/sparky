@@ -15,9 +15,11 @@ from go2_webrtc_driver.constants import RTC_TOPIC
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class SensorData:
     """Structured sensor data from the robot"""
+
     timestamp: float
 
     # IMU Data
@@ -57,6 +59,7 @@ class SensorData:
         """Convert to dictionary for JSON serialization"""
         return asdict(self)
 
+
 class DataBuffer:
     """Time-series buffer for sensor data with analytics support"""
 
@@ -75,14 +78,17 @@ class DataBuffer:
         async with self._lock:
             if count == 1:
                 return [self.data[-1]] if self.data else []
-            return list(self.data)[-count:] if len(self.data) >= count else list(self.data)
+            return (
+                list(self.data)[-count:] if len(self.data) >= count else list(self.data)
+            )
 
-    async def get_time_range(self, start_time: float, end_time: float) -> list[SensorData]:
+    async def get_time_range(
+        self, start_time: float, end_time: float
+    ) -> list[SensorData]:
         """Get sensor data within time range"""
         async with self._lock:
             return [
-                data for data in self.data
-                if start_time <= data.timestamp <= end_time
+                data for data in self.data if start_time <= data.timestamp <= end_time
             ]
 
     async def get_all(self) -> list[SensorData]:
@@ -105,6 +111,7 @@ class DataBuffer:
         """Check if buffer is empty"""
         return len(self.data) == 0
 
+
 class DataCollector:
     """
     Collects and structures sensor data from Sparky robot
@@ -121,7 +128,7 @@ class DataCollector:
             "total_samples": 0,
             "collection_start_time": None,
             "last_sample_time": None,
-            "sampling_rate": 0.0
+            "sampling_rate": 0.0,
         }
 
     def add_callback(self, callback: Callable[[SensorData], None]):
@@ -146,7 +153,7 @@ class DataCollector:
         # Subscribe to low state data
         def data_callback(message):
             try:
-                raw_data = message['data']
+                raw_data = message["data"]
                 sensor_data = self._parse_sensor_data(raw_data)
 
                 # Add to buffer
@@ -158,9 +165,13 @@ class DataCollector:
 
                 # Calculate sampling rate
                 if self.stats["collection_start_time"]:
-                    duration = sensor_data.timestamp - self.stats["collection_start_time"]
+                    duration = (
+                        sensor_data.timestamp - self.stats["collection_start_time"]
+                    )
                     if duration > 0:
-                        self.stats["sampling_rate"] = self.stats["total_samples"] / duration
+                        self.stats["sampling_rate"] = (
+                            self.stats["total_samples"] / duration
+                        )
 
                 # Call registered callbacks
                 for callback in self.callbacks:
@@ -173,7 +184,7 @@ class DataCollector:
                 logger.error(f"Error processing sensor data: {e}")
 
         # Subscribe to sensor data stream
-        self.conn.datachannel.pub_sub.subscribe(RTC_TOPIC['LOW_STATE'], data_callback)
+        self.conn.datachannel.pub_sub.subscribe(RTC_TOPIC["LOW_STATE"], data_callback)
         logger.info("Started data collection")
 
     async def stop_collection(self):
@@ -194,33 +205,33 @@ class DataCollector:
         timestamp = time.time()
 
         # Extract IMU data
-        imu_state = raw_data.get('imu_state', {})
-        imu_rpy = imu_state.get('rpy', [0.0, 0.0, 0.0])
-        imu_gyroscope = imu_state.get('gyroscope', [0.0, 0.0, 0.0])
-        imu_accelerometer = imu_state.get('accelerometer', [0.0, 0.0, 0.0])
-        imu_quaternion = imu_state.get('quaternion', [0.0, 0.0, 0.0, 1.0])
+        imu_state = raw_data.get("imu_state", {})
+        imu_rpy = imu_state.get("rpy", [0.0, 0.0, 0.0])
+        imu_gyroscope = imu_state.get("gyroscope", [0.0, 0.0, 0.0])
+        imu_accelerometer = imu_state.get("accelerometer", [0.0, 0.0, 0.0])
+        imu_quaternion = imu_state.get("quaternion", [0.0, 0.0, 0.0, 1.0])
 
         # Extract motor data
-        motor_state = raw_data.get('motor_state', [])
-        motor_positions = [motor.get('q', 0.0) for motor in motor_state]
-        motor_velocities = [motor.get('dq', 0.0) for motor in motor_state]
-        motor_torques = [motor.get('tau_est', 0.0) for motor in motor_state]
-        motor_temperatures = [motor.get('temperature', 0.0) for motor in motor_state]
-        motor_lost_flags = [motor.get('lost', False) for motor in motor_state]
+        motor_state = raw_data.get("motor_state", [])
+        motor_positions = [motor.get("q", 0.0) for motor in motor_state]
+        motor_velocities = [motor.get("dq", 0.0) for motor in motor_state]
+        motor_torques = [motor.get("tau_est", 0.0) for motor in motor_state]
+        motor_temperatures = [motor.get("temperature", 0.0) for motor in motor_state]
+        motor_lost_flags = [motor.get("lost", False) for motor in motor_state]
 
         # Extract battery data
-        bms_state = raw_data.get('bms_state', {})
-        battery_soc = bms_state.get('soc', 0)
-        battery_current = bms_state.get('current', 0.0)
-        battery_voltage = raw_data.get('power_v', 0.0)
-        battery_temperature = bms_state.get('bq_ntc', 0.0)
+        bms_state = raw_data.get("bms_state", {})
+        battery_soc = bms_state.get("soc", 0)
+        battery_current = bms_state.get("current", 0.0)
+        battery_voltage = raw_data.get("power_v", 0.0)
+        battery_temperature = bms_state.get("bq_ntc", 0.0)
 
         # Extract foot force data
-        foot_forces = raw_data.get('foot_force', [0.0, 0.0, 0.0, 0.0])
+        foot_forces = raw_data.get("foot_force", [0.0, 0.0, 0.0, 0.0])
 
         # Additional sensors
-        temperature_ntc1 = raw_data.get('temperature_ntc1', 0.0)
-        power_voltage = raw_data.get('power_v', 0.0)
+        temperature_ntc1 = raw_data.get("temperature_ntc1", 0.0)
+        power_voltage = raw_data.get("power_v", 0.0)
 
         # Calculate derived metrics
         movement_magnitude = sum(abs(x) for x in imu_gyroscope)
@@ -253,7 +264,7 @@ class DataCollector:
             rotation_magnitude=rotation_magnitude,
             acceleration_magnitude=acceleration_magnitude,
             is_moving=is_moving,
-            stability_score=stability_score
+            stability_score=stability_score,
         )
 
     async def get_latest_data(self) -> SensorData | None:

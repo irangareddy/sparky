@@ -22,20 +22,17 @@ __description__ = "Fast Go2 Robot Control for Real-time Applications"
 # Clean exports for Vision Pro and beginner use
 __all__ = [
     # Simple API (start here!)
-    'Robot',
-    'connect_robot',
-    'ConnectionMethod',
-
+    "Robot",
+    "connect_robot",
+    "ConnectionMethod",
     # Advanced API
-    'Go2Connection',
-    'MotionController',
-    'DataCollector',
-    'SensorData',
-    'AnalyticsEngine',
-    'MovementDirection',
-    'MovementQuality',
-
+    "Go2Connection",
+    "MotionController",
+    "DataCollector",
+    "SensorData",
+    "AnalyticsEngine",
+    "MovementDirection",
+    "MovementQuality",
     # Core module
-    'core',
+    "core",
 ]
-

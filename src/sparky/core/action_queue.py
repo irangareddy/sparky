@@ -5,7 +5,7 @@ Ultra-safe queue logic to prevent race conditions and protect expensive robot ha
 This system ensures:
 - One command executes at a time (no race conditions)
 - Safety validation before each command
-- Emergency commands bypass queue for immediate execution  
+- Emergency commands bypass queue for immediate execution
 - Rate limiting to prevent too-rapid command sequences
 - Integration with existing safety systems
 
@@ -23,33 +23,41 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class ActionPriority(IntEnum):
     """Action priority levels - higher numbers execute first"""
-    EMERGENCY = 100      # Emergency stop, safety responses - bypass queue
-    HIGH = 50           # Recovery commands, safety actions
-    NORMAL = 10         # Regular movement commands
-    LOW = 1            # Background tasks, non-critical actions
+
+    EMERGENCY = 100  # Emergency stop, safety responses - bypass queue
+    HIGH = 50  # Recovery commands, safety actions
+    NORMAL = 10  # Regular movement commands
+    LOW = 1  # Background tasks, non-critical actions
+
 
 class ActionType(Enum):
     """Types of actions that can be queued"""
-    MOVEMENT = "movement"           # Basic movements (forward, backward, etc.)
-    SPORT_COMMAND = "sport_command" # Sport commands (sit, stand, etc.)
-    SAFETY_ACTION = "safety_action" # Safety-related actions
-    EMERGENCY = "emergency"         # Emergency responses
-    SYSTEM = "system"              # System commands
+
+    MOVEMENT = "movement"  # Basic movements (forward, backward, etc.)
+    SPORT_COMMAND = "sport_command"  # Sport commands (sit, stand, etc.)
+    SAFETY_ACTION = "safety_action"  # Safety-related actions
+    EMERGENCY = "emergency"  # Emergency responses
+    SYSTEM = "system"  # System commands
+
 
 class ActionStatus(Enum):
     """Status of actions in the queue"""
-    PENDING = "pending"       # Waiting in queue
-    VALIDATING = "validating" # Safety validation in progress
-    EXECUTING = "executing"   # Currently executing
-    COMPLETED = "completed"   # Successfully completed
-    FAILED = "failed"         # Failed execution
-    CANCELLED = "cancelled"   # Cancelled due to safety or conflict
+
+    PENDING = "pending"  # Waiting in queue
+    VALIDATING = "validating"  # Safety validation in progress
+    EXECUTING = "executing"  # Currently executing
+    COMPLETED = "completed"  # Successfully completed
+    FAILED = "failed"  # Failed execution
+    CANCELLED = "cancelled"  # Cancelled due to safety or conflict
+
 
 @dataclass
 class QueuedAction:
     """Action queued for execution"""
+
     action_id: str
     action_type: ActionType
     priority: ActionPriority
@@ -66,28 +74,31 @@ class QueuedAction:
         if self.timestamp is None:
             self.timestamp = time.time()
 
+
 @dataclass
 class QueueConfig:
     """Configuration for the action queue"""
+
     # Timing constraints
-    min_action_interval: float = 0.2      # Minimum time between actions (200ms)
+    min_action_interval: float = 0.2  # Minimum time between actions (200ms)
     emergency_bypass_delay: float = 0.05  # Brief delay for emergency actions (50ms)
-    safety_validation_timeout: float = 1.0 # Max time for safety validation
-    command_execution_timeout: float = 5.0 # Max time for command execution
+    safety_validation_timeout: float = 1.0  # Max time for safety validation
+    command_execution_timeout: float = 5.0  # Max time for command execution
 
     # Queue limits
-    max_queue_size: int = 50              # Maximum queued actions
-    max_emergency_queue_size: int = 10    # Maximum emergency actions
+    max_queue_size: int = 50  # Maximum queued actions
+    max_emergency_queue_size: int = 10  # Maximum emergency actions
 
     # Safety integration
-    require_safety_validation: bool = True # Require safety checks before execution
-    auto_stop_on_danger: bool = True      # Auto-stop queue on safety danger
+    require_safety_validation: bool = True  # Require safety checks before execution
+    auto_stop_on_danger: bool = True  # Auto-stop queue on safety danger
     safety_manager_required: bool = True  # Require SafetyManager integration
+
 
 class SafeActionQueue:
     """
     Ultra-safe action queue system for robot command execution
-    
+
     Prevents race conditions by serializing all commands and integrating
     with safety systems to protect expensive robot hardware.
     """
@@ -98,7 +109,9 @@ class SafeActionQueue:
 
         # Queue management
         self.action_queue = asyncio.PriorityQueue(maxsize=self.config.max_queue_size)
-        self.emergency_queue = asyncio.Queue(maxsize=self.config.max_emergency_queue_size)
+        self.emergency_queue = asyncio.Queue(
+            maxsize=self.config.max_emergency_queue_size
+        )
         self.active_action: QueuedAction | None = None
 
         # State management
@@ -120,14 +133,18 @@ class SafeActionQueue:
             "actions_cancelled": 0,
             "safety_blocks": 0,
             "emergency_bypasses": 0,
-            "queue_start_time": 0
+            "queue_start_time": 0,
         }
 
         # Validation
         if self.config.safety_manager_required and not self.safety_manager:
-            logger.warning("SafeActionQueue: No SafetyManager provided - some safety features disabled")
+            logger.warning(
+                "SafeActionQueue: No SafetyManager provided - some safety features disabled"
+            )
 
-        logger.info("SafeActionQueue initialized - ultra-safe command execution enabled")
+        logger.info(
+            "SafeActionQueue initialized - ultra-safe command execution enabled"
+        )
 
     async def start(self):
         """Start the action queue processing"""
@@ -139,7 +156,9 @@ class SafeActionQueue:
         self.stats["queue_start_time"] = time.time()
         self.queue_task = asyncio.create_task(self._queue_processor())
 
-        logger.info("🛡️ SafeActionQueue started - protecting robot with safe command execution")
+        logger.info(
+            "🛡️ SafeActionQueue started - protecting robot with safe command execution"
+        )
 
     async def stop(self):
         """Stop the action queue processing"""
@@ -174,11 +193,11 @@ class SafeActionQueue:
         priority: ActionPriority = ActionPriority.NORMAL,
         parameters: dict[str, Any] | None = None,
         callback: Callable | None = None,
-        bypass_queue: bool = False
+        bypass_queue: bool = False,
     ) -> str:
         """
         Queue an action for safe execution
-        
+
         Args:
             command: Command to execute
             action_type: Type of action
@@ -186,7 +205,7 @@ class SafeActionQueue:
             parameters: Command parameters
             callback: Optional callback when complete
             bypass_queue: If True, execute immediately (emergency only)
-            
+
         Returns:
             action_id: Unique identifier for tracking
         """
@@ -201,12 +220,14 @@ class SafeActionQueue:
             priority=priority,
             command=command,
             parameters=parameters or {},
-            callback=callback
+            callback=callback,
         )
 
         # Safety check for emergency bypass
         if bypass_queue and priority != ActionPriority.EMERGENCY:
-            logger.warning(f"Bypass requested for non-emergency action {command} - denying bypass")
+            logger.warning(
+                f"Bypass requested for non-emergency action {command} - denying bypass"
+            )
             bypass_queue = False
 
         try:
@@ -217,18 +238,24 @@ class SafeActionQueue:
                 logger.critical(f"🚨 Emergency action queued (bypass): {command}")
             else:
                 # Normal queue with priority
-                await self.action_queue.put((priority.value * -1, action.timestamp, action))
+                await self.action_queue.put(
+                    (priority.value * -1, action.timestamp, action)
+                )
                 self.stats["actions_queued"] += 1
-                logger.info(f"Action queued: {command} (priority: {priority.name}, id: {action_id})")
+                logger.info(
+                    f"Action queued: {command} (priority: {priority.name}, id: {action_id})"
+                )
 
             self.pending_actions[action_id] = action
             return action_id
 
-        except asyncio.QueueFull:
+        except asyncio.QueueFull as e:
             logger.error(f"Queue full - cannot queue action: {command}")
-            raise RuntimeError("Action queue is full - system may be overloaded")
+            raise RuntimeError("Action queue is full - system may be overloaded") from e
 
-    async def cancel_action(self, action_id: str, reason: str = "User cancelled") -> bool:
+    async def cancel_action(
+        self, action_id: str, reason: str = "User cancelled"
+    ) -> bool:
         """Cancel a pending action"""
         if action_id not in self.pending_actions:
             return False
@@ -264,7 +291,7 @@ class SafeActionQueue:
             command="StopMove",
             action_type=ActionType.EMERGENCY,
             priority=ActionPriority.EMERGENCY,
-            bypass_queue=True
+            bypass_queue=True,
         )
 
     def get_queue_status(self) -> dict[str, Any]:
@@ -279,15 +306,17 @@ class SafeActionQueue:
                 "action_id": self.active_action.action_id,
                 "command": self.active_action.command,
                 "status": self.active_action.status.value,
-                "elapsed_time": time.time() - self.active_action.timestamp
-            } if self.active_action else None,
+                "elapsed_time": time.time() - self.active_action.timestamp,
+            }
+            if self.active_action
+            else None,
             "last_execution": self.last_execution_time,
             "stats": self.stats.copy(),
             "config": {
                 "min_action_interval": self.config.min_action_interval,
                 "max_queue_size": self.config.max_queue_size,
-                "require_safety_validation": self.config.require_safety_validation
-            }
+                "require_safety_validation": self.config.require_safety_validation,
+            },
         }
 
     def get_action_status(self, action_id: str) -> dict[str, Any] | None:
@@ -311,7 +340,7 @@ class SafeActionQueue:
             "timestamp": action.timestamp,
             "execution_time": action.execution_time,
             "error_message": action.error_message,
-            "safety_validated": action.safety_validated
+            "safety_validated": action.safety_validated,
         }
 
     async def _queue_processor(self):
@@ -335,13 +364,19 @@ class SafeActionQueue:
                     # Check for normal actions
                     if not self.action_queue.empty():
                         # Get highest priority action
-                        priority_value, timestamp, action = await self.action_queue.get()
+                        (
+                            priority_value,
+                            timestamp,
+                            action,
+                        ) = await self.action_queue.get()
 
                         # Enforce minimum interval between actions
                         time_since_last = time.time() - self.last_execution_time
                         if time_since_last < self.config.min_action_interval:
                             delay = self.config.min_action_interval - time_since_last
-                            logger.debug(f"Rate limiting: waiting {delay:.3f}s before next action")
+                            logger.debug(
+                                f"Rate limiting: waiting {delay:.3f}s before next action"
+                            )
                             await asyncio.sleep(delay)
 
                         await self._execute_action(action)
@@ -365,7 +400,9 @@ class SafeActionQueue:
         execution_start = time.time()
 
         try:
-            logger.info(f"{'🚨 EMERGENCY' if is_emergency else '🎯'} Executing: {action.command} (id: {action.action_id})")
+            logger.info(
+                f"{'🚨 EMERGENCY' if is_emergency else '🎯'} Executing: {action.command} (id: {action.action_id})"
+            )
 
             # Safety validation (skip for emergency actions)
             if not is_emergency and self.config.require_safety_validation:
@@ -375,7 +412,9 @@ class SafeActionQueue:
                     action.status = ActionStatus.FAILED
                     action.error_message = "Safety validation failed"
                     self.stats["safety_blocks"] += 1
-                    logger.warning(f"❌ Action blocked by safety validation: {action.command}")
+                    logger.warning(
+                        f"❌ Action blocked by safety validation: {action.command}"
+                    )
                     return False
 
                 action.safety_validated = True
@@ -436,10 +475,18 @@ class SafeActionQueue:
 
         # CRITICAL SAFETY CHECK: Block dangerous Damp commands
         if action.command == "Damp" or action.command.lower() == "damp":
-            logger.critical("🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse and damage!")
-            logger.critical("💡 SAFETY RECOMMENDATION: Use 'BalanceStand' or 'RecoveryStand' for safe stabilization")
-            logger.critical("⚠️  Damp reduces leg stiffness causing immediate robot collapse")
-            action.error_message = "Damp command blocked by safety system - causes robot damage"
+            logger.critical(
+                "🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse and damage!"
+            )
+            logger.critical(
+                "💡 SAFETY RECOMMENDATION: Use 'BalanceStand' or 'RecoveryStand' for safe stabilization"
+            )
+            logger.critical(
+                "⚠️  Damp reduces leg stiffness causing immediate robot collapse"
+            )
+            action.error_message = (
+                "Damp command blocked by safety system - causes robot damage"
+            )
             self.stats["safety_blocks"] += 1
             return False
 
@@ -460,7 +507,9 @@ class SafeActionQueue:
             if action.priority != ActionPriority.EMERGENCY:
                 current_state = safety_status.get("state", "unknown")
                 if current_state in ["danger", "emergency"]:
-                    logger.warning(f"Safety validation failed: Robot in {current_state} state")
+                    logger.warning(
+                        f"Safety validation failed: Robot in {current_state} state"
+                    )
                     return False
 
             # Check for conflicting active triggers
@@ -470,7 +519,9 @@ class SafeActionQueue:
 
                 # Block movement commands if there are active triggers
                 if action.action_type == ActionType.MOVEMENT and active_triggers:
-                    logger.warning("Safety validation failed: Active safety triggers present")
+                    logger.warning(
+                        "Safety validation failed: Active safety triggers present"
+                    )
                     return False
 
             logger.debug(f"Safety validation passed for: {action.command}")

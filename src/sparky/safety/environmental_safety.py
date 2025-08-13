@@ -25,96 +25,111 @@ from go2_webrtc_driver.constants import RTC_TOPIC, SPORT_CMD
 
 logger = logging.getLogger(__name__)
 
+
 class EnvironmentalRisk(Enum):
     """Environmental risk assessment levels"""
-    SAFE = 0            # Environment is safe for operation
-    CAUTION = 1         # Minor environmental concerns
-    WARNING = 2         # Significant environmental hazards
-    DANGER = 3          # Immediate environmental threats
-    CRITICAL = 4        # Critical environmental emergency
+
+    SAFE = 0  # Environment is safe for operation
+    CAUTION = 1  # Minor environmental concerns
+    WARNING = 2  # Significant environmental hazards
+    DANGER = 3  # Immediate environmental threats
+    CRITICAL = 4  # Critical environmental emergency
+
 
 class HazardType(Enum):
     """Types of environmental hazards"""
-    TERRAIN = "terrain"           # Unsafe ground conditions
-    OBSTACLE = "obstacle"         # Physical obstacles
-    CLIFF = "cliff"              # Drop-offs and edges
-    WATER = "water"              # Water hazards
-    TEMPERATURE = "temperature"   # Extreme temperatures
-    BOUNDARY = "boundary"         # Safe zone violations
-    COLLISION = "collision"       # Imminent collision risk
-    SURFACE = "surface"          # Slippery/unstable surfaces
-    SLOPE = "slope"              # Excessive slopes
-    DEBRIS = "debris"            # Hazardous debris
-    WEATHER = "weather"          # Weather conditions
-    CROWD = "crowd"              # Crowded areas
+
+    TERRAIN = "terrain"  # Unsafe ground conditions
+    OBSTACLE = "obstacle"  # Physical obstacles
+    CLIFF = "cliff"  # Drop-offs and edges
+    WATER = "water"  # Water hazards
+    TEMPERATURE = "temperature"  # Extreme temperatures
+    BOUNDARY = "boundary"  # Safe zone violations
+    COLLISION = "collision"  # Imminent collision risk
+    SURFACE = "surface"  # Slippery/unstable surfaces
+    SLOPE = "slope"  # Excessive slopes
+    DEBRIS = "debris"  # Hazardous debris
+    WEATHER = "weather"  # Weather conditions
+    CROWD = "crowd"  # Crowded areas
+
 
 @dataclass
 class BoundaryZone:
     """Safe zone boundary definition"""
+
     center_x: float
     center_y: float
     radius: float
-    zone_type: str = "safe"       # "safe", "warning", "forbidden"
+    zone_type: str = "safe"  # "safe", "warning", "forbidden"
     active: bool = True
+
 
 @dataclass
 class TerrainData:
     """Terrain condition information"""
-    slope_angle: float = 0.0      # Degrees
-    surface_roughness: float = 0.0 # 0.0 = smooth, 1.0 = very rough
-    stability: float = 1.0        # 0.0 = unstable, 1.0 = stable
-    friction: float = 1.0         # 0.0 = slippery, 1.0 = high friction
+
+    slope_angle: float = 0.0  # Degrees
+    surface_roughness: float = 0.0  # 0.0 = smooth, 1.0 = very rough
+    stability: float = 1.0  # 0.0 = unstable, 1.0 = stable
+    friction: float = 1.0  # 0.0 = slippery, 1.0 = high friction
     timestamp: float = 0.0
+
 
 @dataclass
 class EnvironmentalConditions:
     """Current environmental conditions"""
-    temperature: float = 20.0     # Celsius
-    humidity: float = 50.0        # Percentage
-    lighting: float = 1.0         # 0.0 = dark, 1.0 = bright
-    air_quality: float = 1.0      # 0.0 = poor, 1.0 = excellent
+
+    temperature: float = 20.0  # Celsius
+    humidity: float = 50.0  # Percentage
+    lighting: float = 1.0  # 0.0 = dark, 1.0 = bright
+    air_quality: float = 1.0  # 0.0 = poor, 1.0 = excellent
     timestamp: float = 0.0
+
 
 @dataclass
 class HazardEvent:
     """Environmental hazard event record"""
+
     hazard_type: HazardType
     risk_level: EnvironmentalRisk
     location: tuple[float, float]  # x, y coordinates
-    distance: float               # Distance to hazard (meters)
-    severity: float              # 0.0 = minor, 1.0 = severe
+    distance: float  # Distance to hazard (meters)
+    severity: float  # 0.0 = minor, 1.0 = severe
     message: str
     timestamp: float
     response_taken: str | None = None
     resolved: bool = False
 
+
 @dataclass
 class SafetyLimits:
     """Environmental safety limits"""
+
     # Terrain limits
-    max_safe_slope: float = 15.0          # Maximum slope angle (degrees)
-    min_surface_stability: float = 0.7    # Minimum terrain stability
-    min_surface_friction: float = 0.5     # Minimum friction coefficient
+    max_safe_slope: float = 15.0  # Maximum slope angle (degrees)
+    min_surface_stability: float = 0.7  # Minimum terrain stability
+    min_surface_friction: float = 0.5  # Minimum friction coefficient
 
     # Distance limits
-    min_obstacle_distance: float = 0.5    # Minimum distance to obstacles (meters)
-    cliff_detection_distance: float = 1.0 # Distance for cliff detection
-    collision_warning_distance: float = 1.5 # Collision warning distance
+    min_obstacle_distance: float = 0.5  # Minimum distance to obstacles (meters)
+    cliff_detection_distance: float = 1.0  # Distance for cliff detection
+    collision_warning_distance: float = 1.5  # Collision warning distance
 
     # Environmental limits
-    min_operating_temp: float = -10.0     # Minimum temperature (Celsius)
-    max_operating_temp: float = 40.0      # Maximum temperature (Celsius)
-    max_humidity: float = 90.0            # Maximum humidity (%)
-    min_lighting: float = 0.3             # Minimum lighting level
+    min_operating_temp: float = -10.0  # Minimum temperature (Celsius)
+    max_operating_temp: float = 40.0  # Maximum temperature (Celsius)
+    max_humidity: float = 90.0  # Maximum humidity (%)
+    min_lighting: float = 0.3  # Minimum lighting level
 
     # Timing limits
-    monitoring_interval: float = 0.1      # Environmental monitoring frequency
-    hazard_timeout: float = 5.0           # Time to resolve hazards
+    monitoring_interval: float = 0.1  # Environmental monitoring frequency
+    hazard_timeout: float = 5.0  # Time to resolve hazards
+
 
 class EnvironmentalSafetySystem:
     """
     Comprehensive environmental safety monitoring system
-    
+
     Provides real-time environmental hazard detection and risk assessment
     to protect expensive robot hardware from environmental damage.
     """
@@ -140,8 +155,8 @@ class EnvironmentalSafetySystem:
         self.position_history = deque(maxlen=100)  # 10 seconds at 10Hz
 
         # Sensor data buffers
-        self.lidar_data = deque(maxlen=10)    # Recent LIDAR scans
-        self.visual_data = deque(maxlen=10)   # Recent camera data
+        self.lidar_data = deque(maxlen=10)  # Recent LIDAR scans
+        self.visual_data = deque(maxlen=10)  # Recent camera data
         self.sensor_timestamps = deque(maxlen=50)
 
         # Statistics
@@ -151,10 +166,12 @@ class EnvironmentalSafetySystem:
             "boundary_violations": 0,
             "environmental_warnings": 0,
             "monitoring_uptime": 0,
-            "start_time": time.time()
+            "start_time": time.time(),
         }
 
-        logger.info("Environmental Safety System initialized - protecting against external hazards")
+        logger.info(
+            "Environmental Safety System initialized - protecting against external hazards"
+        )
 
     async def start_monitoring(self):
         """Start environmental safety monitoring"""
@@ -186,7 +203,9 @@ class EnvironmentalSafetySystem:
             while self.is_monitoring:
                 try:
                     # Update statistics
-                    self.stats["monitoring_uptime"] = time.time() - self.stats["start_time"]
+                    self.stats["monitoring_uptime"] = (
+                        time.time() - self.stats["start_time"]
+                    )
 
                     # Collect environmental data
                     await self._collect_environmental_data()
@@ -235,18 +254,17 @@ class EnvironmentalSafetySystem:
 
             # Update position (placeholder - would read from actual odometry)
             # self.current_position = await self._get_robot_position()
-            self.position_history.append({
-                "position": self.current_position,
-                "timestamp": current_time
-            })
+            self.position_history.append(
+                {"position": self.current_position, "timestamp": current_time}
+            )
 
             # Update environmental conditions (placeholder)
             self.environmental_conditions = EnvironmentalConditions(
                 temperature=20.0,  # Would read from temperature sensors
-                humidity=50.0,     # Would read from humidity sensors
-                lighting=1.0,      # Would analyze camera brightness
-                air_quality=1.0,   # Would read from gas sensors
-                timestamp=current_time
+                humidity=50.0,  # Would read from humidity sensors
+                lighting=1.0,  # Would analyze camera brightness
+                air_quality=1.0,  # Would read from gas sensors
+                timestamp=current_time,
             )
 
             self.sensor_timestamps.append(current_time)
@@ -270,11 +288,11 @@ class EnvironmentalSafetySystem:
             # - Surface friction estimates
 
             self.terrain_data = TerrainData(
-                slope_angle=0.0,      # Would calculate from point cloud
-                surface_roughness=0.1, # Would analyze surface variation
-                stability=0.9,        # Would assess terrain stability
-                friction=0.8,         # Would estimate friction
-                timestamp=current_time
+                slope_angle=0.0,  # Would calculate from point cloud
+                surface_roughness=0.1,  # Would analyze surface variation
+                stability=0.9,  # Would assess terrain stability
+                friction=0.8,  # Would estimate friction
+                timestamp=current_time,
             )
 
             # Check for terrain hazards
@@ -282,14 +300,14 @@ class EnvironmentalSafetySystem:
                 await self._create_hazard_event(
                     HazardType.SLOPE,
                     EnvironmentalRisk.WARNING,
-                    f"Excessive slope detected: {self.terrain_data.slope_angle:.1f}°"
+                    f"Excessive slope detected: {self.terrain_data.slope_angle:.1f}°",
                 )
 
             if self.terrain_data.stability < self.limits.min_surface_stability:
                 await self._create_hazard_event(
                     HazardType.SURFACE,
                     EnvironmentalRisk.CAUTION,
-                    f"Unstable terrain detected: stability {self.terrain_data.stability:.2f}"
+                    f"Unstable terrain detected: stability {self.terrain_data.stability:.2f}",
                 )
 
         except Exception as e:
@@ -323,7 +341,10 @@ class EnvironmentalSafetySystem:
             obstacle_distance = 0.8  # Would calculate from LIDAR
 
             if obstacle_distance < self.limits.collision_warning_distance:
-                severity = max(0.0, 1.0 - (obstacle_distance / self.limits.collision_warning_distance))
+                severity = max(
+                    0.0,
+                    1.0 - (obstacle_distance / self.limits.collision_warning_distance),
+                )
 
                 if obstacle_distance < self.limits.min_obstacle_distance:
                     risk_level = EnvironmentalRisk.DANGER
@@ -335,7 +356,7 @@ class EnvironmentalSafetySystem:
                     risk_level,
                     f"Obstacle detected at {obstacle_distance:.2f}m",
                     distance=obstacle_distance,
-                    severity=severity
+                    severity=severity,
                 )
 
         except Exception as e:
@@ -352,15 +373,18 @@ class EnvironmentalSafetySystem:
 
             # Example: Check for ground disappearance ahead
             ground_detected = True  # Would analyze LIDAR returns
-            cliff_distance = 2.0    # Would calculate actual distance
+            cliff_distance = 2.0  # Would calculate actual distance
 
-            if not ground_detected and cliff_distance < self.limits.cliff_detection_distance:
+            if (
+                not ground_detected
+                and cliff_distance < self.limits.cliff_detection_distance
+            ):
                 await self._create_hazard_event(
                     HazardType.CLIFF,
                     EnvironmentalRisk.DANGER,
                     f"Cliff detected at {cliff_distance:.2f}m ahead",
                     distance=cliff_distance,
-                    severity=0.9
+                    severity=0.9,
                 )
 
         except Exception as e:
@@ -372,12 +396,14 @@ class EnvironmentalSafetySystem:
             conditions = self.environmental_conditions
 
             # Temperature checks
-            if (conditions.temperature < self.limits.min_operating_temp or
-                conditions.temperature > self.limits.max_operating_temp):
+            if (
+                conditions.temperature < self.limits.min_operating_temp
+                or conditions.temperature > self.limits.max_operating_temp
+            ):
                 await self._create_hazard_event(
                     HazardType.TEMPERATURE,
                     EnvironmentalRisk.WARNING,
-                    f"Temperature outside safe range: {conditions.temperature:.1f}°C"
+                    f"Temperature outside safe range: {conditions.temperature:.1f}°C",
                 )
 
             # Humidity checks
@@ -385,7 +411,7 @@ class EnvironmentalSafetySystem:
                 await self._create_hazard_event(
                     HazardType.WEATHER,
                     EnvironmentalRisk.CAUTION,
-                    f"High humidity detected: {conditions.humidity:.1f}%"
+                    f"High humidity detected: {conditions.humidity:.1f}%",
                 )
 
             # Lighting checks
@@ -393,7 +419,7 @@ class EnvironmentalSafetySystem:
                 await self._create_hazard_event(
                     HazardType.WEATHER,
                     EnvironmentalRisk.CAUTION,
-                    f"Low light conditions: {conditions.lighting:.2f}"
+                    f"Low light conditions: {conditions.lighting:.2f}",
                 )
 
         except Exception as e:
@@ -413,8 +439,8 @@ class EnvironmentalSafetySystem:
 
                 # Calculate distance from zone center
                 distance = math.sqrt(
-                    (current_pos[0] - zone.center_x)**2 +
-                    (current_pos[1] - zone.center_y)**2
+                    (current_pos[0] - zone.center_x) ** 2
+                    + (current_pos[1] - zone.center_y) ** 2
                 )
 
                 if zone.zone_type == "safe":
@@ -424,7 +450,7 @@ class EnvironmentalSafetySystem:
                             HazardType.BOUNDARY,
                             EnvironmentalRisk.WARNING,
                             f"Outside safe zone by {distance - zone.radius:.2f}m",
-                            distance=distance
+                            distance=distance,
                         )
                         self.stats["boundary_violations"] += 1
 
@@ -435,7 +461,7 @@ class EnvironmentalSafetySystem:
                             HazardType.BOUNDARY,
                             EnvironmentalRisk.DANGER,
                             f"Inside forbidden zone by {zone.radius - distance:.2f}m",
-                            distance=distance
+                            distance=distance,
                         )
                         self.stats["boundary_violations"] += 1
 
@@ -451,7 +477,8 @@ class EnvironmentalSafetySystem:
 
             # Find highest risk level among active hazards
             max_risk = max(
-                hazard.risk_level for hazard in self.detected_hazards.values()
+                hazard.risk_level
+                for hazard in self.detected_hazards.values()
                 if not hazard.resolved
             )
 
@@ -460,7 +487,9 @@ class EnvironmentalSafetySystem:
 
             # Log risk level changes
             if self.current_risk_level != old_risk_level:
-                logger.warning(f"Environmental risk changed: {old_risk_level.name} → {self.current_risk_level.name}")
+                logger.warning(
+                    f"Environmental risk changed: {old_risk_level.name} → {self.current_risk_level.name}"
+                )
 
                 if self.current_risk_level.value > EnvironmentalRisk.CAUTION.value:
                     self.stats["environmental_warnings"] += 1
@@ -505,15 +534,13 @@ class EnvironmentalSafetySystem:
 
             # Stop movement and assess situation
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
             )
 
             # Enable balance stand for stability
             await asyncio.sleep(0.2)
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
 
         except Exception as e:
@@ -526,17 +553,17 @@ class EnvironmentalSafetySystem:
 
             # Immediate stop
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
             )
 
             # Engage safe stabilization maintaining leg stiffness
             # NOTE: Previously used dangerous Damp which causes leg collapse
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
-            logger.info("🛡️ Applied BalanceStand for environmental stability (avoiding dangerous Damp)")
+            logger.info(
+                "🛡️ Applied BalanceStand for environmental stability (avoiding dangerous Damp)"
+            )
 
             self.stats["hazards_avoided"] += 1
 
@@ -550,22 +577,21 @@ class EnvironmentalSafetySystem:
 
             # Full emergency sequence
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
             )
 
             # Use safe stabilization instead of dangerous Damp
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
             )
-            logger.info("🛡️ Applied RecoveryStand for collision response (avoiding dangerous Damp)")
+            logger.info(
+                "🛡️ Applied RecoveryStand for collision response (avoiding dangerous Damp)"
+            )
 
             # Try to achieve safest possible position
             await asyncio.sleep(0.5)
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["Sit"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Sit"]}
             )
 
         except Exception as e:
@@ -577,7 +603,7 @@ class EnvironmentalSafetySystem:
         risk_level: EnvironmentalRisk,
         message: str,
         distance: float = 0.0,
-        severity: float = 0.5
+        severity: float = 0.5,
     ):
         """Create environmental hazard event"""
         try:
@@ -588,14 +614,16 @@ class EnvironmentalSafetySystem:
                 distance=distance,
                 severity=severity,
                 message=message,
-                timestamp=time.time()
+                timestamp=time.time(),
             )
 
             self.detected_hazards[hazard_type] = event
             self.hazard_history.append(event)
             self.stats["hazards_detected"] += 1
 
-            logger.warning(f"Environmental hazard detected: {hazard_type.value} - {message}")
+            logger.warning(
+                f"Environmental hazard detected: {hazard_type.value} - {message}"
+            )
 
         except Exception as e:
             logger.error(f"Error creating hazard event: {e}")
@@ -615,16 +643,17 @@ class EnvironmentalSafetySystem:
             del self.detected_hazards[hazard_type]
             logger.info(f"Hazard auto-resolved: {hazard_type.value}")
 
-    def add_safe_zone(self, center_x: float, center_y: float, radius: float, zone_type: str = "safe"):
+    def add_safe_zone(
+        self, center_x: float, center_y: float, radius: float, zone_type: str = "safe"
+    ):
         """Add a safe zone boundary"""
         zone = BoundaryZone(
-            center_x=center_x,
-            center_y=center_y,
-            radius=radius,
-            zone_type=zone_type
+            center_x=center_x, center_y=center_y, radius=radius, zone_type=zone_type
         )
         self.safe_zones.append(zone)
-        logger.info(f"Added {zone_type} zone at ({center_x}, {center_y}) with radius {radius}m")
+        logger.info(
+            f"Added {zone_type} zone at ({center_x}, {center_y}) with radius {radius}m"
+        )
 
     def clear_safe_zones(self):
         """Clear all safe zone boundaries"""
@@ -650,13 +679,13 @@ class EnvironmentalSafetySystem:
             "terrain_conditions": {
                 "slope_angle": self.terrain_data.slope_angle,
                 "surface_stability": self.terrain_data.stability,
-                "surface_friction": self.terrain_data.friction
+                "surface_friction": self.terrain_data.friction,
             },
             "environmental_conditions": {
                 "temperature": self.environmental_conditions.temperature,
                 "humidity": self.environmental_conditions.humidity,
                 "lighting": self.environmental_conditions.lighting,
-                "air_quality": self.environmental_conditions.air_quality
+                "air_quality": self.environmental_conditions.air_quality,
             },
             "active_hazards": {
                 hazard_type.value: {
@@ -664,7 +693,7 @@ class EnvironmentalSafetySystem:
                     "message": event.message,
                     "distance": event.distance,
                     "severity": event.severity,
-                    "age": time.time() - event.timestamp
+                    "age": time.time() - event.timestamp,
                 }
                 for hazard_type, event in self.detected_hazards.items()
                 if not event.resolved
@@ -674,7 +703,7 @@ class EnvironmentalSafetySystem:
                     "center": (zone.center_x, zone.center_y),
                     "radius": zone.radius,
                     "type": zone.zone_type,
-                    "active": zone.active
+                    "active": zone.active,
                 }
                 for zone in self.safe_zones
             ],
@@ -684,11 +713,11 @@ class EnvironmentalSafetySystem:
                     "risk_level": event.risk_level.name,
                     "message": event.message,
                     "timestamp": event.timestamp,
-                    "resolved": event.resolved
+                    "resolved": event.resolved,
                 }
                 for event in self.hazard_history[-10:]  # Last 10 events
             ],
-            "stats": self.stats.copy()
+            "stats": self.stats.copy(),
         }
 
     async def test_environmental_system(self) -> dict[str, bool]:
@@ -729,4 +758,6 @@ class EnvironmentalSafetySystem:
     def __del__(self):
         """Cleanup when environmental safety system is destroyed"""
         if self.is_monitoring:
-            logger.warning("Environmental safety destroyed while monitoring - this could be unsafe")
+            logger.warning(
+                "Environmental safety destroyed while monitoring - this could be unsafe"
+            )

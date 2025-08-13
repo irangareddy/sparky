@@ -23,17 +23,21 @@ from go2_webrtc_driver.constants import RTC_TOPIC, SPORT_CMD
 
 logger = logging.getLogger(__name__)
 
+
 class EmergencyLevel(Enum):
     """Emergency response levels - escalating severity"""
+
     NONE = 0
-    SOFT_STOP = 1           # Gentle deceleration
-    HARD_STOP = 2           # Immediate stop
-    EMERGENCY_STABILIZE = 3 # Safe stabilization (maintains leg stiffness)
+    SOFT_STOP = 1  # Gentle deceleration
+    HARD_STOP = 2  # Immediate stop
+    EMERGENCY_STABILIZE = 3  # Safe stabilization (maintains leg stiffness)
     PROTECTIVE_POSTURE = 4  # Move to safe position
-    SAFE_SHUTDOWN = 5       # Complete shutdown
+    SAFE_SHUTDOWN = 5  # Complete shutdown
+
 
 class EmergencyTrigger(Enum):
     """What triggered the emergency response"""
+
     MANUAL = "manual"
     FALL_DETECTED = "fall_detected"
     TILT_EXCESSIVE = "tilt_excessive"
@@ -45,9 +49,11 @@ class EmergencyTrigger(Enum):
     SENSOR_FAILURE = "sensor_failure"
     UNKNOWN_ERROR = "unknown_error"
 
+
 @dataclass
 class EmergencyResponse:
     """Emergency response record"""
+
     trigger: EmergencyTrigger
     level: EmergencyLevel
     timestamp: float
@@ -57,10 +63,11 @@ class EmergencyResponse:
     recovery_attempted: bool = False
     recovery_success: bool = False
 
+
 class EmergencyResponseSystem:
     """
     Comprehensive emergency response system
-    
+
     Provides layered responses to protect robot hardware from damage.
     Each level provides increasing protection with more restrictive responses.
     """
@@ -74,7 +81,7 @@ class EmergencyResponseSystem:
 
         # Response timing constraints
         self.min_response_interval = 0.5  # Minimum time between responses (seconds)
-        self.response_timeout = 10.0      # Maximum time to wait for response
+        self.response_timeout = 10.0  # Maximum time to wait for response
 
         # Statistics
         self.stats = {
@@ -82,7 +89,7 @@ class EmergencyResponseSystem:
             "successful_responses": 0,
             "failed_responses": 0,
             "recoveries_attempted": 0,
-            "recoveries_successful": 0
+            "recoveries_successful": 0,
         }
 
         logger.info("Emergency Response System initialized")
@@ -91,16 +98,16 @@ class EmergencyResponseSystem:
         self,
         trigger: EmergencyTrigger,
         level: EmergencyLevel,
-        context: dict[str, Any] = None
+        context: dict[str, Any] = None,
     ) -> EmergencyResponse:
         """
         Trigger emergency response with specified level
-        
+
         Args:
             trigger: What caused the emergency
             level: Severity level of response needed
             context: Additional context data
-            
+
         Returns:
             EmergencyResponse record
         """
@@ -108,13 +115,17 @@ class EmergencyResponseSystem:
 
         # Prevent rapid-fire emergency responses
         if current_time - self.last_response_time < self.min_response_interval:
-            logger.warning(f"Emergency response rate limited - ignoring {trigger.value}")
+            logger.warning(
+                f"Emergency response rate limited - ignoring {trigger.value}"
+            )
             return None
 
         self.last_response_time = current_time
         self.stats["total_emergencies"] += 1
 
-        logger.critical(f"🚨 EMERGENCY TRIGGERED: {trigger.value} (Level: {level.value})")
+        logger.critical(
+            f"🚨 EMERGENCY TRIGGERED: {trigger.value} (Level: {level.value})"
+        )
 
         # Create response record
         response = EmergencyResponse(
@@ -122,7 +133,7 @@ class EmergencyResponseSystem:
             level=level,
             timestamp=current_time,
             success=False,
-            duration=0
+            duration=0,
         )
 
         try:
@@ -150,10 +161,14 @@ class EmergencyResponseSystem:
                 self.stats["successful_responses"] += 1
                 self.current_level = level
                 self.active_emergency = True
-                logger.info(f"Emergency response completed successfully in {response.duration:.2f}s")
+                logger.info(
+                    f"Emergency response completed successfully in {response.duration:.2f}s"
+                )
             else:
                 self.stats["failed_responses"] += 1
-                logger.error(f"Emergency response FAILED after {response.duration:.2f}s")
+                logger.error(
+                    f"Emergency response FAILED after {response.duration:.2f}s"
+                )
 
                 # If this response failed, try a higher level response
                 if level.value < EmergencyLevel.SAFE_SHUTDOWN.value:
@@ -178,11 +193,10 @@ class EmergencyResponseSystem:
 
             # Send stop move command
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
             )
 
-            if response['data']['header']['status']['code'] != 0:
+            if response["data"]["header"]["status"]["code"] != 0:
                 logger.error("Stop command failed")
                 return False
 
@@ -191,11 +205,10 @@ class EmergencyResponseSystem:
 
             # Transition to balanced stand for stability
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
 
-            return response['data']['header']['status']['code'] == 0
+            return response["data"]["header"]["status"]["code"] == 0
 
         except Exception as e:
             logger.error(f"Soft stop failed: {e}")
@@ -210,11 +223,10 @@ class EmergencyResponseSystem:
             for _ in range(3):
                 try:
                     await self.conn.datachannel.pub_sub.publish_request_new(
-                        RTC_TOPIC["SPORT_MOD"],
-                        {"api_id": SPORT_CMD["StopMove"]}
+                        RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
                     )
                     await asyncio.sleep(0.1)
-                except:
+                except Exception:
                     pass
 
             return True
@@ -226,7 +238,9 @@ class EmergencyResponseSystem:
     async def _emergency_stabilize(self) -> bool:
         """Level 3: Safe emergency stabilization maintaining leg stiffness"""
         try:
-            logger.warning("Executing EMERGENCY STABILIZE - safe stabilization with leg stiffness")
+            logger.warning(
+                "Executing EMERGENCY STABILIZE - safe stabilization with leg stiffness"
+            )
 
             # First stop movement
             await self._hard_stop()
@@ -234,21 +248,21 @@ class EmergencyResponseSystem:
             # Engage safe stabilization (SAFE: maintains leg stiffness)
             # NOTE: Previously used dangerous Damp which causes immediate leg collapse
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
             )
 
-            if response['data']['header']['status']['code'] == 0:
-                logger.info("🛡️ Emergency stabilization with RecoveryStand successful (avoiding dangerous Damp)")
+            if response["data"]["header"]["status"]["code"] == 0:
+                logger.info(
+                    "🛡️ Emergency stabilization with RecoveryStand successful (avoiding dangerous Damp)"
+                )
                 return True
             else:
                 # Fallback to BalanceStand if RecoveryStand fails
                 logger.warning("RecoveryStand failed, trying BalanceStand as fallback")
                 response = await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["SPORT_MOD"],
-                    {"api_id": SPORT_CMD["BalanceStand"]}
+                    RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
                 )
-                return response['data']['header']['status']['code'] == 0
+                return response["data"]["header"]["status"]["code"] == 0
 
         except Exception as e:
             logger.error(f"Emergency stabilization failed: {e}")
@@ -266,11 +280,10 @@ class EmergencyResponseSystem:
             # Try to move to sitting position (lower center of gravity)
             try:
                 response = await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["SPORT_MOD"],
-                    {"api_id": SPORT_CMD["Sit"]}
+                    RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["Sit"]}
                 )
 
-                if response['data']['header']['status']['code'] == 0:
+                if response["data"]["header"]["status"]["code"] == 0:
                     logger.info("Robot moved to sitting position")
                     return True
 
@@ -280,11 +293,10 @@ class EmergencyResponseSystem:
             # If sitting failed, try lying down
             try:
                 response = await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["SPORT_MOD"],
-                    {"api_id": SPORT_CMD["StandDown"]}
+                    RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StandDown"]}
                 )
 
-                if response['data']['header']['status']['code'] == 0:
+                if response["data"]["header"]["status"]["code"] == 0:
                     logger.info("Robot moved to lying position")
                     return True
 
@@ -310,11 +322,12 @@ class EmergencyResponseSystem:
             # Additional safe stabilization (avoiding dangerous Damp)
             try:
                 await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["SPORT_MOD"],
-                    {"api_id": SPORT_CMD["BalanceStand"]}
+                    RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
                 )
-                logger.info("🛡️ Applied BalanceStand for final stabilization (avoiding dangerous Damp)")
-            except:
+                logger.info(
+                    "🛡️ Applied BalanceStand for final stabilization (avoiding dangerous Damp)"
+                )
+            except Exception:
                 pass
 
             logger.critical("Robot is in safe shutdown state")
@@ -327,7 +340,7 @@ class EmergencyResponseSystem:
     async def attempt_recovery(self) -> bool:
         """
         Attempt to recover from emergency state
-        
+
         Returns:
             True if recovery successful, False otherwise
         """
@@ -337,7 +350,9 @@ class EmergencyResponseSystem:
 
         self.stats["recoveries_attempted"] += 1
 
-        logger.info(f"Attempting recovery from emergency level {self.current_level.value}")
+        logger.info(
+            f"Attempting recovery from emergency level {self.current_level.value}"
+        )
 
         try:
             # Mark all responses as having recovery attempted
@@ -346,7 +361,10 @@ class EmergencyResponseSystem:
                     response.recovery_attempted = True
 
             # Recovery sequence based on current emergency level
-            if self.current_level in [EmergencyLevel.SOFT_STOP, EmergencyLevel.HARD_STOP]:
+            if self.current_level in [
+                EmergencyLevel.SOFT_STOP,
+                EmergencyLevel.HARD_STOP,
+            ]:
                 success = await self._recovery_from_stop()
             elif self.current_level == EmergencyLevel.EMERGENCY_STABILIZE:
                 success = await self._recovery_from_stabilize()
@@ -382,11 +400,10 @@ class EmergencyResponseSystem:
         try:
             # Simple balance stand should be sufficient
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
 
-            return response['data']['header']['status']['code'] == 0
+            return response["data"]["header"]["status"]["code"] == 0
 
         except Exception as e:
             logger.error(f"Recovery from stop failed: {e}")
@@ -397,15 +414,16 @@ class EmergencyResponseSystem:
         try:
             # Balance stand to ensure stable positioning (leg stiffness was maintained)
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
 
-            if response['data']['header']['status']['code'] == 0:
+            if response["data"]["header"]["status"]["code"] == 0:
                 logger.info("🛡️ Recovery from emergency stabilization successful")
                 return True
             else:
-                logger.warning("Recovery balance stand failed, robot may need manual intervention")
+                logger.warning(
+                    "Recovery balance stand failed, robot may need manual intervention"
+                )
                 return False
 
         except Exception as e:
@@ -417,20 +435,18 @@ class EmergencyResponseSystem:
         try:
             # Try recovery stand first
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
             )
 
-            if response['data']['header']['status']['code'] == 0:
+            if response["data"]["header"]["status"]["code"] == 0:
                 await asyncio.sleep(3)  # Allow recovery time
 
                 # Then balance stand
                 response = await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["SPORT_MOD"],
-                    {"api_id": SPORT_CMD["BalanceStand"]}
+                    RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
                 )
 
-                return response['data']['header']['status']['code'] == 0
+                return response["data"]["header"]["status"]["code"] == 0
 
             return False
 
@@ -446,11 +462,10 @@ class EmergencyResponseSystem:
 
             # Step 1: Recovery stand
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
             )
 
-            if response['data']['header']['status']['code'] != 0:
+            if response["data"]["header"]["status"]["code"] != 0:
                 logger.error("Recovery stand failed during shutdown recovery")
                 return False
 
@@ -458,11 +473,10 @@ class EmergencyResponseSystem:
 
             # Step 2: Balance stand
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
 
-            return response['data']['header']['status']['code'] == 0
+            return response["data"]["header"]["status"]["code"] == 0
 
         except Exception as e:
             logger.error(f"Recovery from shutdown failed: {e}")
@@ -484,11 +498,11 @@ class EmergencyResponseSystem:
                     "duration": r.duration,
                     "timestamp": r.timestamp,
                     "recovery_attempted": r.recovery_attempted,
-                    "recovery_success": r.recovery_success
+                    "recovery_success": r.recovery_success,
                 }
                 for r in self.response_history[-5:]  # Last 5 responses
             ],
-            "stats": self.stats.copy()
+            "stats": self.stats.copy(),
         }
 
     def clear_emergency_state(self):
@@ -506,8 +520,7 @@ class EmergencyResponseSystem:
         try:
             # Test soft stop
             response = await self.trigger_emergency(
-                EmergencyTrigger.MANUAL,
-                EmergencyLevel.SOFT_STOP
+                EmergencyTrigger.MANUAL, EmergencyLevel.SOFT_STOP
             )
             results["soft_stop"] = response.success if response else False
 

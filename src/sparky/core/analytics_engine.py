@@ -10,6 +10,7 @@ from .data_collector import DataCollector
 
 logger = logging.getLogger(__name__)
 
+
 class AnalyticsEngine:
     """
     Simple analytics for basic robot movement detection
@@ -50,7 +51,7 @@ class AnalyticsEngine:
                     "imu_accelerometer": latest_data.imu_accelerometer,
                     "imu_gyroscope": latest_data.imu_gyroscope,
                     "imu_rpy": latest_data.imu_rpy,
-                    "movement_magnitude": latest_data.movement_magnitude
+                    "movement_magnitude": latest_data.movement_magnitude,
                 }
             return None
         except Exception as e:
@@ -67,9 +68,13 @@ class AnalyticsEngine:
                 "streaming": self.is_streaming,
                 "moving": is_moving,
                 "data_available": sensor_data is not None,
-                "timestamp": sensor_data["timestamp"] if sensor_data else 0
+                "timestamp": sensor_data["timestamp"] if sensor_data else 0,
             }
         except Exception as e:
             logger.error(f"Error getting status: {e}")
-            return {"streaming": False, "moving": False, "data_available": False, "timestamp": 0}
-
+            return {
+                "streaming": False,
+                "moving": False,
+                "data_available": False,
+                "timestamp": 0,
+            }

@@ -24,7 +24,7 @@ tasks:
       - find . -name "__pycache__" -type d -exec rm -rf {} + || true
 
   format:
-    desc: Format code with ruff
+    desc: Format code with ruff (safe fixes only)
     deps: [install]
     cmds:
       - poetry run ruff format src tests
@@ -36,6 +36,30 @@ tasks:
     cmds:
       - poetry run ruff format src tests
       - poetry run ruff check src tests --fix-only --unsafe-fixes
+
+  fix:
+    desc: Fix all ruff issues (format + safe + unsafe fixes)
+    deps: [install]
+    cmds:
+      - poetry run ruff format src tests
+      - poetry run ruff check src tests --fix-only --unsafe-fixes
+      - echo "✅ All ruff issues fixed!"
+
+  fix:check:
+    desc: Check and fix ruff issues, then verify
+    deps: [install]
+    cmds:
+      - task: fix
+      - task: check:ruff
+      - echo "✅ Ruff issues fixed and verified!"
+
+  fix:src:
+    desc: Fix ruff issues in source code only
+    deps: [install]
+    cmds:
+      - poetry run ruff format src
+      - poetry run ruff check src --fix-only --unsafe-fixes
+      - echo "✅ Source code ruff issues fixed!"
 
   check:
     desc: Run all quality checks
@@ -106,7 +130,7 @@ tasks:
     desc: Set up development environment
     cmds:
       - task: install
-      - task: format
+      - task: fix
       - echo "✅ Development environment ready!"
       - echo "Try task run-examples"
 

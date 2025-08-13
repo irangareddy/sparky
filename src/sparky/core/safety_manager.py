@@ -22,30 +22,36 @@ from go2_webrtc_driver.constants import RTC_TOPIC, SPORT_CMD
 
 logger = logging.getLogger(__name__)
 
+
 class SafetyState(Enum):
     """Safety state levels with progressive response"""
-    SAFE = "safe"                    # Normal operation
-    MONITORING = "monitoring"        # Increased vigilance
-    WARNING = "warning"              # Detected potential issues
-    DANGER = "danger"                # Immediate risk detected
-    EMERGENCY = "emergency"          # Critical situation - emergency response
-    SHUTDOWN = "shutdown"            # Safe shutdown in progress
+
+    SAFE = "safe"  # Normal operation
+    MONITORING = "monitoring"  # Increased vigilance
+    WARNING = "warning"  # Detected potential issues
+    DANGER = "danger"  # Immediate risk detected
+    EMERGENCY = "emergency"  # Critical situation - emergency response
+    SHUTDOWN = "shutdown"  # Safe shutdown in progress
+
 
 class SafetyTrigger(Enum):
     """Types of safety triggers"""
-    ORIENTATION = "orientation"      # Tilt/orientation issues
-    BATTERY = "battery"             # Low battery/power issues
-    TEMPERATURE = "temperature"     # Overheating
-    COMMUNICATION = "communication" # Lost connection
-    COMMAND_FAILURE = "command_failure" # Command execution failures
-    ENVIRONMENTAL = "environmental" # Environmental hazards
-    COLLISION = "collision"         # Collision detected
-    FALL_RISK = "fall_risk"        # Fall prediction
-    USER_STOP = "user_stop"        # User-initiated emergency stop
+
+    ORIENTATION = "orientation"  # Tilt/orientation issues
+    BATTERY = "battery"  # Low battery/power issues
+    TEMPERATURE = "temperature"  # Overheating
+    COMMUNICATION = "communication"  # Lost connection
+    COMMAND_FAILURE = "command_failure"  # Command execution failures
+    ENVIRONMENTAL = "environmental"  # Environmental hazards
+    COLLISION = "collision"  # Collision detected
+    FALL_RISK = "fall_risk"  # Fall prediction
+    USER_STOP = "user_stop"  # User-initiated emergency stop
+
 
 @dataclass
 class SafetyEvent:
     """Safety event data structure"""
+
     trigger: SafetyTrigger
     severity: SafetyState
     message: str
@@ -53,14 +59,16 @@ class SafetyEvent:
     timestamp: float
     resolved: bool = False
 
+
 @dataclass
 class SafetyLimits:
     """Configurable safety limits"""
+
     # Orientation limits (degrees)
-    max_roll: float = 15.0          # Maximum roll angle
-    max_pitch: float = 15.0         # Maximum pitch angle
-    critical_roll: float = 25.0     # Critical roll angle
-    critical_pitch: float = 25.0    # Critical pitch angle
+    max_roll: float = 15.0  # Maximum roll angle
+    max_pitch: float = 15.0  # Maximum pitch angle
+    critical_roll: float = 25.0  # Critical roll angle
+    critical_pitch: float = 25.0  # Critical pitch angle
 
     # Battery limits (percentage)
     low_battery_warning: float = 20.0
@@ -78,10 +86,11 @@ class SafetyLimits:
     # Movement limits
     max_movement_speed: float = 0.8  # Maximum safe movement speed
 
+
 class SafetyManager:
     """
     Central safety management system for Go2 robot
-    
+
     Provides comprehensive protection against falls, damage, and unsafe conditions.
     This is critical for protecting expensive robot hardware ($15k+ investment).
     """
@@ -113,7 +122,7 @@ class SafetyManager:
             "events_resolved": 0,
             "emergency_stops": 0,
             "uptime": 0,
-            "start_time": time.time()
+            "start_time": time.time(),
         }
 
         logger.info("Safety Manager initialized with comprehensive protection")
@@ -175,7 +184,7 @@ class SafetyManager:
                         SafetyTrigger.COMMAND_FAILURE,
                         SafetyState.WARNING,
                         f"Safety monitoring error: {e}",
-                        {"error": str(e)}
+                        {"error": str(e)},
                     )
                     await asyncio.sleep(0.1)  # Slower cycle if errors
 
@@ -204,7 +213,7 @@ class SafetyManager:
         """Check communication health with robot"""
         try:
             # Simple ping test - try to get motion mode
-            if hasattr(self.conn, 'datachannel') and self.conn.datachannel:
+            if hasattr(self.conn, "datachannel") and self.conn.datachannel:
                 # This is a lightweight check - just verify we can communicate
                 current_time = time.time()
                 time_since_heartbeat = current_time - self.last_heartbeat
@@ -214,14 +223,14 @@ class SafetyManager:
                         SafetyTrigger.COMMUNICATION,
                         SafetyState.DANGER,
                         "Communication timeout detected",
-                        {"timeout_duration": time_since_heartbeat}
+                        {"timeout_duration": time_since_heartbeat},
                     )
             else:
                 await self._trigger_safety_event(
                     SafetyTrigger.COMMUNICATION,
                     SafetyState.DANGER,
                     "No active data channel connection",
-                    {"connection_state": "disconnected"}
+                    {"connection_state": "disconnected"},
                 )
 
         except Exception as e:
@@ -229,7 +238,7 @@ class SafetyManager:
                 SafetyTrigger.COMMUNICATION,
                 SafetyState.WARNING,
                 f"Communication check failed: {e}",
-                {"error": str(e)}
+                {"error": str(e)},
             )
 
     async def _check_robot_state(self):
@@ -242,7 +251,8 @@ class SafetyManager:
             if self.emergency_stop_active:
                 # Verify emergency stop is still needed
                 active_critical_events = [
-                    event for event in self.active_triggers.values()
+                    event
+                    for event in self.active_triggers.values()
                     if event.severity in [SafetyState.DANGER, SafetyState.EMERGENCY]
                     and not event.resolved
                 ]
@@ -265,12 +275,15 @@ class SafetyManager:
             event_age = current_time - event.timestamp
 
             if event_age > 30.0:  # 30 second auto-resolution for some events
-                if trigger in [SafetyTrigger.COMMAND_FAILURE, SafetyTrigger.COMMUNICATION]:
+                if trigger in [
+                    SafetyTrigger.COMMAND_FAILURE,
+                    SafetyTrigger.COMMUNICATION,
+                ]:
                     # Only auto-resolve if we can communicate
                     try:
-                        if hasattr(self.conn, 'datachannel') and self.conn.datachannel:
+                        if hasattr(self.conn, "datachannel") and self.conn.datachannel:
                             events_to_resolve.append(trigger)
-                    except:
+                    except Exception:
                         pass
 
         for trigger in events_to_resolve:
@@ -283,7 +296,8 @@ class SafetyManager:
         else:
             # Determine highest severity active trigger
             max_severity = max(
-                event.severity for event in self.active_triggers.values()
+                event.severity
+                for event in self.active_triggers.values()
                 if not event.resolved
             )
             new_state = max_severity
@@ -292,7 +306,9 @@ class SafetyManager:
         if new_state != self.current_state:
             await self._handle_state_transition(self.current_state, new_state)
 
-    async def _handle_state_transition(self, old_state: SafetyState, new_state: SafetyState):
+    async def _handle_state_transition(
+        self, old_state: SafetyState, new_state: SafetyState
+    ):
         """Handle safety state transitions with appropriate responses"""
         self.previous_state = old_state
         self.current_state = new_state
@@ -328,10 +344,11 @@ class SafetyManager:
             # Use BalanceStand for stability (SAFE: maintains leg stiffness)
             # NOTE: Previously used dangerous Damp command which causes leg collapse
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
-            logger.info("🛡️ Applied BalanceStand for safe stabilization (avoiding dangerous Damp)")
+            logger.info(
+                "🛡️ Applied BalanceStand for safe stabilization (avoiding dangerous Damp)"
+            )
 
             # Could add obstacle avoidance activation here
             # await self._enable_obstacle_avoidance()
@@ -366,7 +383,7 @@ class SafetyManager:
         trigger: SafetyTrigger,
         severity: SafetyState,
         message: str,
-        data: dict[str, Any]
+        data: dict[str, Any],
     ):
         """Trigger a safety event"""
         event = SafetyEvent(
@@ -374,7 +391,7 @@ class SafetyManager:
             severity=severity,
             message=message,
             data=data,
-            timestamp=time.time()
+            timestamp=time.time(),
         )
 
         self.safety_events.append(event)
@@ -407,8 +424,7 @@ class SafetyManager:
         try:
             # Immediate stop command
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
             )
 
             # Wait briefly then engage safe stabilization
@@ -417,17 +433,18 @@ class SafetyManager:
             # Use RecoveryStand for emergency stabilization (SAFE: maintains leg stiffness)
             # NOTE: Previously used dangerous Damp command which causes leg collapse
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
             )
-            logger.info("🛡️ Applied RecoveryStand for emergency stabilization (avoiding dangerous Damp)")
+            logger.info(
+                "🛡️ Applied RecoveryStand for emergency stabilization (avoiding dangerous Damp)"
+            )
 
             # Trigger emergency safety event
             await self._trigger_safety_event(
                 SafetyTrigger.USER_STOP,
                 SafetyState.EMERGENCY,
                 f"Emergency stop: {reason}",
-                {"reason": reason, "timestamp": time.time()}
+                {"reason": reason, "timestamp": time.time()},
             )
 
             logger.critical("Emergency stop sequence completed")
@@ -445,16 +462,14 @@ class SafetyManager:
 
             # Recovery stand
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["RecoveryStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["RecoveryStand"]}
             )
 
             await asyncio.sleep(3)
 
             # Balance stand
             await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["BalanceStand"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["BalanceStand"]}
             )
 
             # Clear user stop trigger if it was the only issue
@@ -480,7 +495,7 @@ class SafetyManager:
                 trigger.value: {
                     "severity": event.severity.value,
                     "message": event.message,
-                    "age": time.time() - event.timestamp
+                    "age": time.time() - event.timestamp,
                 }
                 for trigger, event in self.active_triggers.items()
                 if not event.resolved
@@ -491,8 +506,8 @@ class SafetyManager:
                 "max_roll": self.limits.max_roll,
                 "max_pitch": self.limits.max_pitch,
                 "low_battery_warning": self.limits.low_battery_warning,
-                "critical_battery": self.limits.critical_battery
-            }
+                "critical_battery": self.limits.critical_battery,
+            },
         }
 
     async def manual_safety_check(self) -> dict[str, Any]:
@@ -503,4 +518,6 @@ class SafetyManager:
     def __del__(self):
         """Cleanup when safety manager is destroyed"""
         if self.is_monitoring:
-            logger.warning("Safety manager destroyed while monitoring - this could be unsafe")
+            logger.warning(
+                "Safety manager destroyed while monitoring - this could be unsafe"
+            )

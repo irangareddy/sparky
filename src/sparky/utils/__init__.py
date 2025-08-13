@@ -30,12 +30,11 @@ __all__ = [
     "DEFAULT_DURATION",
     "MAX_SPEED",
     "MIN_SPEED",
-
     # Exceptions
     "SparkyError",
     "ConnectionError",
     "RobotControlError",
     "DataCollectionError",
     "ConfigurationError",
-    "TimeoutError"
+    "TimeoutError",
 ]

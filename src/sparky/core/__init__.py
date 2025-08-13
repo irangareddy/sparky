@@ -22,31 +22,26 @@ from .stream_processor import MovementEvent, StreamMetrics, StreamProcessor
 
 __all__ = [
     # Connection
-    'Go2Connection',
-    'create_local_ap_connection',
-    'create_local_sta_connection',
-    'create_local_sta_connection_by_serial',
-    'create_remote_connection',
-
+    "Go2Connection",
+    "create_local_ap_connection",
+    "create_local_sta_connection",
+    "create_local_sta_connection_by_serial",
+    "create_remote_connection",
     # Motion
-    'MotionController',
-
+    "MotionController",
     # Data streaming
-    'DataCollector',
-    'SensorData',
-    'DataBuffer',
-
+    "DataCollector",
+    "SensorData",
+    "DataBuffer",
     # Stream processing
-    'StreamProcessor',
-    'MovementEvent',
-    'StreamMetrics',
-
+    "StreamProcessor",
+    "MovementEvent",
+    "StreamMetrics",
     # Analytics
-    'AnalyticsEngine',
+    "AnalyticsEngine",
 ]
 
 # Version info
 __version__ = "1.0.0"
 __author__ = "Sparky Development Team"
 __description__ = "Advanced robot control and analytics for Go2 robots"
-

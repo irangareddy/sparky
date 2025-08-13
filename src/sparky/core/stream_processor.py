@@ -16,9 +16,11 @@ from .data_collector import DataCollector, SensorData
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class MovementEvent:
     """Represents a detected movement event"""
+
     timestamp: float
     event_type: str  # 'start', 'stop', 'change'
     movement_type: str  # 'linear', 'rotation', 'complex'
@@ -27,9 +29,11 @@ class MovementEvent:
     confidence: float = 0.0
     details: dict[str, Any] = None
 
+
 @dataclass
 class StreamMetrics:
     """Real-time metrics from data stream"""
+
     timestamp: float
 
     # Movement metrics
@@ -54,6 +58,7 @@ class StreamMetrics:
     communication_health: float = 100.0
     sensor_health: float = 100.0
     overall_health: str = "good"  # "good", "warning", "critical"
+
 
 class StreamProcessor:
     """
@@ -170,8 +175,8 @@ class StreamProcessor:
                     details={
                         "gyroscope": sensor_data.imu_gyroscope,
                         "accelerometer": sensor_data.imu_accelerometer,
-                        "stability_score": sensor_data.stability_score
-                    }
+                        "stability_score": sensor_data.stability_score,
+                    },
                 )
 
                 # Update state
@@ -213,9 +218,15 @@ class StreamProcessor:
         # Check recent data consistency if available
         consistency_score = 0.8  # Default
         if len(self.metrics_window) > 5:
-            recent_movements = [data.movement_magnitude for data in list(self.metrics_window)[-5:]]
+            recent_movements = [
+                data.movement_magnitude for data in list(self.metrics_window)[-5:]
+            ]
             if recent_movements:
-                variance = statistics.variance(recent_movements) if len(recent_movements) > 1 else 0
+                variance = (
+                    statistics.variance(recent_movements)
+                    if len(recent_movements) > 1
+                    else 0
+                )
                 consistency_score = max(0.1, 1.0 - min(variance, 1.0))
 
         return (magnitude_score + consistency_score) / 2.0
@@ -245,11 +256,15 @@ class StreamProcessor:
             movements = [data.movement_magnitude for data in window_data]
             avg_movement = statistics.mean(movements) if movements else 0.0
             max_movement = max(movements) if movements else 0.0
-            movement_variance = statistics.variance(movements) if len(movements) > 1 else 0.0
+            movement_variance = (
+                statistics.variance(movements) if len(movements) > 1 else 0.0
+            )
 
             # Stability metrics
             stability_scores = [data.stability_score for data in window_data]
-            avg_stability = statistics.mean(stability_scores) if stability_scores else 0.0
+            avg_stability = (
+                statistics.mean(stability_scores) if stability_scores else 0.0
+            )
 
             # Calculate stability trend
             if len(stability_scores) >= 10:
@@ -274,7 +289,9 @@ class StreamProcessor:
 
             # Activity metrics
             moving_count = sum(1 for data in window_data if data.is_moving)
-            movement_percentage = (moving_count / len(window_data)) * 100 if window_data else 0.0
+            movement_percentage = (
+                (moving_count / len(window_data)) * 100 if window_data else 0.0
+            )
 
             # Classify activity level
             if movement_percentage < 10:
@@ -298,13 +315,21 @@ class StreamProcessor:
 
             # Sensor health based on data consistency
             sensor_health = 100.0
-            if movement_variance > 2.0:  # High variance indicates potential sensor issues
+            if (
+                movement_variance > 2.0
+            ):  # High variance indicates potential sensor issues
                 sensor_health = max(50, 100 - (movement_variance * 10))
 
             # Overall health
-            if max_temp > self.temperature_critical_threshold or communication_health < 50:
+            if (
+                max_temp > self.temperature_critical_threshold
+                or communication_health < 50
+            ):
                 overall_health = "critical"
-            elif max_temp > self.temperature_warning_threshold or communication_health < 80:
+            elif (
+                max_temp > self.temperature_warning_threshold
+                or communication_health < 80
+            ):
                 overall_health = "warning"
             else:
                 overall_health = "good"
@@ -312,7 +337,9 @@ class StreamProcessor:
             # Battery efficiency (simplified calculation)
             recent_currents = [data.battery_current for data in window_data[-10:]]
             avg_current = statistics.mean(recent_currents) if recent_currents else 0.0
-            battery_efficiency = max(0, 100 - abs(avg_current) * 0.1)  # Simplified metric
+            battery_efficiency = max(
+                0, 100 - abs(avg_current) * 0.1
+            )  # Simplified metric
 
             # Create metrics object
             self.current_metrics = StreamMetrics(
@@ -329,7 +356,7 @@ class StreamProcessor:
                 activity_level=activity_level,
                 communication_health=communication_health,
                 sensor_health=sensor_health,
-                overall_health=overall_health
+                overall_health=overall_health,
             )
 
             # Notify callbacks
@@ -350,7 +377,9 @@ class StreamProcessor:
         """Get the last detected movement event"""
         return self.last_movement_event
 
-    async def get_movement_history(self, duration_seconds: float = 60.0) -> list[MovementEvent]:
+    async def get_movement_history(
+        self, duration_seconds: float = 60.0
+    ) -> list[MovementEvent]:
         """Get movement events from the last N seconds"""
         # This would require storing event history - simplified for now
         if self.last_movement_event:
@@ -368,9 +397,13 @@ class StreamProcessor:
         """Set temperature warning and critical thresholds"""
         self.temperature_warning_threshold = warning
         self.temperature_critical_threshold = critical
-        logger.info(f"Temperature thresholds set to warning: {warning}°C, critical: {critical}°C")
+        logger.info(
+            f"Temperature thresholds set to warning: {warning}°C, critical: {critical}°C"
+        )
 
-    async def analyze_movement_pattern(self, duration_seconds: float = 30.0) -> dict[str, Any]:
+    async def analyze_movement_pattern(
+        self, duration_seconds: float = 30.0
+    ) -> dict[str, Any]:
         """Analyze movement patterns over a time period"""
         try:
             # Get data from the specified duration
@@ -391,17 +424,22 @@ class StreamProcessor:
                     "median": statistics.median(movement_magnitudes),
                     "max": max(movement_magnitudes),
                     "min": min(movement_magnitudes),
-                    "variance": statistics.variance(movement_magnitudes) if len(movement_magnitudes) > 1 else 0
+                    "variance": statistics.variance(movement_magnitudes)
+                    if len(movement_magnitudes) > 1
+                    else 0,
                 },
                 "stability_stats": {
                     "mean": statistics.mean(stability_scores),
                     "median": statistics.median(stability_scores),
-                    "trend": "stable"  # Could be enhanced with trend analysis
+                    "trend": "stable",  # Could be enhanced with trend analysis
                 },
                 "activity_summary": {
-                    "moving_percentage": (sum(1 for d in data if d.is_moving) / len(data)) * 100,
-                    "peak_activity_periods": []  # Could identify peak activity times
-                }
+                    "moving_percentage": (
+                        sum(1 for d in data if d.is_moving) / len(data)
+                    )
+                    * 100,
+                    "peak_activity_periods": [],  # Could identify peak activity times
+                },
             }
 
             return analysis
@@ -409,4 +447,3 @@ class StreamProcessor:
         except Exception as e:
             logger.error(f"Error analyzing movement pattern: {e}")
             return {"error": str(e)}
-

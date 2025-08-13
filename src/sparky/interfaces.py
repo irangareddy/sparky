@@ -10,9 +10,11 @@ from typing import Any
 
 class ConnectionMethod(Enum):
     """Available connection methods"""
+
     LOCAL_AP = "localap"
     LOCAL_STA = "localsta"
     REMOTE = "remote"
+
 
 class ConnectionInterface(ABC):
     """Abstract interface for robot connections"""
@@ -42,36 +44,49 @@ class ConnectionInterface(ABC):
         """Get connection information and status"""
         pass
 
+
 class MotionInterface(ABC):
     """Abstract interface for robot motion control"""
 
     @abstractmethod
-    async def move_forward(self, speed: float, duration: float, verify: bool = True) -> bool:
+    async def move_forward(
+        self, speed: float, duration: float, verify: bool = True
+    ) -> bool:
         """Move robot forward"""
         pass
 
     @abstractmethod
-    async def move_backward(self, speed: float, duration: float, verify: bool = True) -> bool:
+    async def move_backward(
+        self, speed: float, duration: float, verify: bool = True
+    ) -> bool:
         """Move robot backward"""
         pass
 
     @abstractmethod
-    async def move_left(self, speed: float, duration: float, verify: bool = True) -> bool:
+    async def move_left(
+        self, speed: float, duration: float, verify: bool = True
+    ) -> bool:
         """Move robot left"""
         pass
 
     @abstractmethod
-    async def move_right(self, speed: float, duration: float, verify: bool = True) -> bool:
+    async def move_right(
+        self, speed: float, duration: float, verify: bool = True
+    ) -> bool:
         """Move robot right"""
         pass
 
     @abstractmethod
-    async def turn_left(self, speed: float, duration: float, verify: bool = True) -> bool:
+    async def turn_left(
+        self, speed: float, duration: float, verify: bool = True
+    ) -> bool:
         """Turn robot left"""
         pass
 
     @abstractmethod
-    async def turn_right(self, speed: float, duration: float, verify: bool = True) -> bool:
+    async def turn_right(
+        self, speed: float, duration: float, verify: bool = True
+    ) -> bool:
         """Turn robot right"""
         pass
 
@@ -94,6 +109,7 @@ class MotionInterface(ABC):
     def get_status(self) -> dict[str, Any]:
         """Get motion controller status"""
         pass
+
 
 class DataInterface(ABC):
     """Abstract interface for data collection and streaming"""
@@ -128,6 +144,7 @@ class DataInterface(ABC):
         """Get data collection statistics"""
         pass
 
+
 class AnalyticsInterface(ABC):
     """Abstract interface for movement analytics"""
 
@@ -147,7 +164,9 @@ class AnalyticsInterface(ABC):
         pass
 
     @abstractmethod
-    async def analyze_recent_performance(self, duration_seconds: float) -> dict[str, Any]:
+    async def analyze_recent_performance(
+        self, duration_seconds: float
+    ) -> dict[str, Any]:
         """Analyze recent performance metrics"""
         pass
 
@@ -161,11 +180,14 @@ class AnalyticsInterface(ABC):
         """Stop analytics processing"""
         pass
 
+
 class RobotInterface(ABC):
     """High-level robot interface combining all functionality"""
 
     @abstractmethod
-    async def connect(self, method: ConnectionMethod = ConnectionMethod.LOCAL_AP, **kwargs) -> bool:
+    async def connect(
+        self, method: ConnectionMethod = ConnectionMethod.LOCAL_AP, **kwargs
+    ) -> bool:
         """Connect to robot using specified method"""
         pass
 
@@ -175,7 +197,9 @@ class RobotInterface(ABC):
         pass
 
     @abstractmethod
-    async def move(self, direction: str, speed: float = 0.5, duration: float = 2.0) -> bool:
+    async def move(
+        self, direction: str, speed: float = 0.5, duration: float = 2.0
+    ) -> bool:
         """Move robot in specified direction"""
         pass
 
@@ -208,4 +232,3 @@ class RobotInterface(ABC):
     async def export_data(self, format_type: str = "json") -> Any:
         """Export collected data"""
         pass
-

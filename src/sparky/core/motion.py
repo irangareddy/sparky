@@ -4,7 +4,7 @@ Comprehensive motion control for Go2 robots
 
 IMPORTANT FIRMWARE UPDATE NOTE:
 The Go2 robot firmware has been updated and no longer supports the "normal" and "ai" motion modes
-that were present in earlier firmware versions. The robot now operates primarily in "mcf" 
+that were present in earlier firmware versions. The robot now operates primarily in "mcf"
 (Manual Control Firmware) mode, which provides access to basic movements and sport commands
 but restricts advanced features that previously required AI mode.
 
@@ -27,14 +27,15 @@ from .action_queue import ActionPriority, ActionType, QueueConfig, SafeActionQue
 
 logger = logging.getLogger(__name__)
 
+
 class MotionController:
     """
     Comprehensive motion controller for Go2 robots
     Handles all movement commands and motion mode switching
-    
+
     Now with ultra-safe action queue system to prevent race conditions
     and protect expensive robot hardware.
-    
+
     Note: Current Go2 firmware only supports "mcf" mode.
     Legacy "normal" and "ai" modes are no longer available.
     """
@@ -53,25 +54,26 @@ class MotionController:
             queue_config = QueueConfig(
                 min_action_interval=0.2,  # 200ms between commands
                 require_safety_validation=True,
-                auto_stop_on_danger=True
+                auto_stop_on_danger=True,
             )
             self.action_queue = SafeActionQueue(safety_manager, queue_config)
             # Override the command execution method
             self.action_queue._perform_command_execution = self._execute_queued_command
 
-        logger.info(f"MotionController initialized with {'SAFE QUEUE' if use_action_queue else 'DIRECT'} mode")
+        logger.info(
+            f"MotionController initialized with {'SAFE QUEUE' if use_action_queue else 'DIRECT'} mode"
+        )
 
     async def get_motion_mode(self) -> str | None:
         """Get current motion mode"""
         try:
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["MOTION_SWITCHER"],
-                {"api_id": 1001}
+                RTC_TOPIC["MOTION_SWITCHER"], {"api_id": 1001}
             )
 
-            if response['data']['header']['status']['code'] == 0:
-                data = json.loads(response['data']['data'])
-                self.current_mode = data['name']
+            if response["data"]["header"]["status"]["code"] == 0:
+                data = json.loads(response["data"]["data"])
+                self.current_mode = data["name"]
                 return self.current_mode
             return None
         except Exception as e:
@@ -81,12 +83,12 @@ class MotionController:
     async def switch_motion_mode(self, mode: str) -> bool:
         """
         Switch to specified motion mode
-        
+
         WARNING: Current Go2 firmware only supports "mcf" mode.
         Attempting to switch to "normal" or "ai" will fail with error codes:
         - 7004: Motion mode switching restriction
         - 7002: AI mode not available
-        
+
         Args:
             mode: Motion mode to switch to (currently only "mcf" is supported)
         """
@@ -95,28 +97,33 @@ class MotionController:
 
             # Check if trying to switch to unsupported modes
             if mode in ["normal", "ai"]:
-                logger.warning(f"Mode '{mode}' is not supported in current firmware. Only 'mcf' mode is available.")
-                logger.warning("This is due to a recent firmware update that removed normal/ai modes.")
+                logger.warning(
+                    f"Mode '{mode}' is not supported in current firmware. Only 'mcf' mode is available."
+                )
+                logger.warning(
+                    "This is due to a recent firmware update that removed normal/ai modes."
+                )
                 return False
 
             response = await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["MOTION_SWITCHER"],
-                {
-                    "api_id": 1002,
-                    "parameter": {"name": mode}
-                }
+                {"api_id": 1002, "parameter": {"name": mode}},
             )
 
-            if response['data']['header']['status']['code'] == 0:
+            if response["data"]["header"]["status"]["code"] == 0:
                 self.current_mode = mode
                 logger.info(f"Successfully switched to {mode} mode")
                 await asyncio.sleep(5)  # Wait for mode switch
                 return True
             else:
-                error_code = response['data']['header']['status']['code']
-                logger.error(f"Failed to switch to {mode} mode. Error code: {error_code}")
+                error_code = response["data"]["header"]["status"]["code"]
+                logger.error(
+                    f"Failed to switch to {mode} mode. Error code: {error_code}"
+                )
                 if error_code in [7004, 7002]:
-                    logger.error("This error indicates the requested mode is not available in current firmware.")
+                    logger.error(
+                        "This error indicates the requested mode is not available in current firmware."
+                    )
                 return False
         except Exception as e:
             logger.error(f"Error switching to {mode} mode: {e}")
@@ -142,13 +149,20 @@ class MotionController:
             # Fallback to direct stop
             await self.stop()
 
-    async def move(self, x: float = 0, y: float = 0, z: float = 0, duration: float = 3.0, verify: bool = True) -> bool:
+    async def move(
+        self,
+        x: float = 0,
+        y: float = 0,
+        z: float = 0,
+        duration: float = 3.0,
+        verify: bool = True,
+    ) -> bool:
         """
         Move the robot with specified parameters
-        
+
         Args:
             x: Forward/backward movement (-1.0 to 1.0)
-            y: Left/right movement (-1.0 to 1.0) 
+            y: Left/right movement (-1.0 to 1.0)
             z: Rotation/yaw (-1.0 to 1.0)
             duration: How long to maintain this movement
             verify: Whether to verify that movement actually occurred
@@ -159,7 +173,7 @@ class MotionController:
                 command="Move",
                 action_type=ActionType.MOVEMENT,
                 priority=ActionPriority.NORMAL,
-                parameters={"x": x, "y": y, "z": z, "duration": duration}
+                parameters={"x": x, "y": y, "z": z, "duration": duration},
             )
             logger.info(f"Move command queued safely: {action_id}")
 
@@ -172,7 +186,9 @@ class MotionController:
                 if status["status"] == "completed":
                     return True
                 elif status["status"] == "failed":
-                    logger.error(f"Queued move failed: {status.get('error_message', 'Unknown error')}")
+                    logger.error(
+                        f"Queued move failed: {status.get('error_message', 'Unknown error')}"
+                    )
                     return False
 
                 await asyncio.sleep(0.1)
@@ -180,20 +196,19 @@ class MotionController:
             # Direct execution (legacy mode)
             return await self._execute_direct_move(x, y, z, duration)
 
-    async def _execute_direct_move(self, x: float, y: float, z: float, duration: float) -> bool:
+    async def _execute_direct_move(
+        self, x: float, y: float, z: float, duration: float
+    ) -> bool:
         """Direct move execution (legacy mode)"""
         try:
             logger.info(f"Direct move: x={x}, y={y}, z={z}, duration={duration}")
 
             response = await self.conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"],
-                {
-                    "api_id": SPORT_CMD["Move"],
-                    "parameter": {"x": x, "y": y, "z": z}
-                }
+                {"api_id": SPORT_CMD["Move"], "parameter": {"x": x, "y": y, "z": z}},
             )
 
-            if response['data']['header']['status']['code'] == 0:
+            if response["data"]["header"]["status"]["code"] == 0:
                 self.is_moving = True
                 logger.info("Move command accepted")
                 await asyncio.sleep(duration)
@@ -225,7 +240,7 @@ class MotionController:
                 command="StopMove",
                 action_type=ActionType.EMERGENCY,
                 priority=ActionPriority.EMERGENCY,
-                bypass_queue=True
+                bypass_queue=True,
             )
             logger.warning(f"🛑 Emergency stop queued: {action_id}")
 
@@ -246,11 +261,10 @@ class MotionController:
         try:
             logger.warning("🛑 Direct emergency stop")
             response = await self.conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["SPORT_MOD"],
-                {"api_id": SPORT_CMD["StopMove"]}
+                RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StopMove"]}
             )
 
-            if response['data']['header']['status']['code'] == 0:
+            if response["data"]["header"]["status"]["code"] == 0:
                 self.is_moving = False
                 logger.info("Stop command accepted")
                 return True
@@ -263,37 +277,55 @@ class MotionController:
             return False
 
     # Convenience methods for common movements
-    async def move_forward(self, speed: float = 0.5, duration: float = 3.0, verify: bool = True) -> bool:
+    async def move_forward(
+        self, speed: float = 0.5, duration: float = 3.0, verify: bool = True
+    ) -> bool:
         """Move forward at specified speed"""
         return await self.move(x=speed, duration=duration, verify=verify)
 
-    async def move_backward(self, speed: float = 0.5, duration: float = 3.0, verify: bool = True) -> bool:
+    async def move_backward(
+        self, speed: float = 0.5, duration: float = 3.0, verify: bool = True
+    ) -> bool:
         """Move backward at specified speed"""
         return await self.move(x=-speed, duration=duration, verify=verify)
 
-    async def move_left(self, speed: float = 0.3, duration: float = 3.0, verify: bool = True) -> bool:
+    async def move_left(
+        self, speed: float = 0.3, duration: float = 3.0, verify: bool = True
+    ) -> bool:
         """Move left at specified speed"""
         return await self.move(y=speed, duration=duration, verify=verify)
 
-    async def move_right(self, speed: float = 0.3, duration: float = 3.0, verify: bool = True) -> bool:
+    async def move_right(
+        self, speed: float = 0.3, duration: float = 3.0, verify: bool = True
+    ) -> bool:
         """Move right at specified speed"""
         return await self.move(y=-speed, duration=duration, verify=verify)
 
-    async def turn_left(self, speed: float = 0.3, duration: float = 3.0, verify: bool = True) -> bool:
+    async def turn_left(
+        self, speed: float = 0.3, duration: float = 3.0, verify: bool = True
+    ) -> bool:
         """Turn left at specified speed"""
         return await self.move(z=speed, duration=duration, verify=verify)
 
-    async def turn_right(self, speed: float = 0.3, duration: float = 3.0, verify: bool = True) -> bool:
+    async def turn_right(
+        self, speed: float = 0.3, duration: float = 3.0, verify: bool = True
+    ) -> bool:
         """Turn right at specified speed"""
         return await self.move(z=-speed, duration=duration, verify=verify)
 
-    async def execute_sport_command(self, command_name: str, parameters: dict | None = None, verify: bool = True, priority: ActionPriority = ActionPriority.NORMAL) -> bool:
+    async def execute_sport_command(
+        self,
+        command_name: str,
+        parameters: dict | None = None,
+        verify: bool = True,
+        priority: ActionPriority = ActionPriority.NORMAL,
+    ) -> bool:
         """
         Execute a sport command by name
-        
+
         Note: Some advanced commands may not be available in current firmware.
         Commands that previously required "ai" mode may fail with error code 3203.
-        
+
         Args:
             command_name: Name of the command (e.g., "Hello", "Sit", "StandUp")
             parameters: Optional parameters for the command
@@ -302,11 +334,18 @@ class MotionController:
         # Check if command exists first
         if command_name not in SPORT_CMD:
             available_commands = list(SPORT_CMD.keys())
-            similar_commands = [cmd for cmd in available_commands if command_name.lower() in cmd.lower() or cmd.lower() in command_name.lower()]
+            similar_commands = [
+                cmd
+                for cmd in available_commands
+                if command_name.lower() in cmd.lower()
+                or cmd.lower() in command_name.lower()
+            ]
 
             error_msg = f"Unknown sport command: {command_name}"
             if similar_commands:
-                error_msg += f". Did you mean one of: {', '.join(similar_commands[:3])}?"
+                error_msg += (
+                    f". Did you mean one of: {', '.join(similar_commands[:3])}?"
+                )
             else:
                 error_msg += f". Available commands include: {', '.join(available_commands[:5])}..."
 
@@ -322,7 +361,7 @@ class MotionController:
                 command=command_name,
                 action_type=action_type,
                 priority=priority,
-                parameters=parameters
+                parameters=parameters,
             )
             logger.info(f"Sport command queued safely: {command_name} ({action_id})")
 
@@ -335,7 +374,9 @@ class MotionController:
                 if status["status"] == "completed":
                     return True
                 elif status["status"] == "failed":
-                    logger.error(f"Queued sport command failed: {status.get('error_message', 'Unknown error')}")
+                    logger.error(
+                        f"Queued sport command failed: {status.get('error_message', 'Unknown error')}"
+                    )
                     return False
 
                 await asyncio.sleep(0.1)
@@ -359,7 +400,9 @@ class MotionController:
         else:
             return ActionType.SPORT_COMMAND
 
-    async def _execute_direct_sport_command(self, command_name: str, parameters: dict | None = None) -> bool:
+    async def _execute_direct_sport_command(
+        self, command_name: str, parameters: dict | None = None
+    ) -> bool:
         """Direct sport command execution (legacy mode)"""
         try:
             logger.info(f"Direct sport command: {command_name}")
@@ -367,26 +410,26 @@ class MotionController:
             if parameters:
                 response = await self.conn.datachannel.pub_sub.publish_request_new(
                     RTC_TOPIC["SPORT_MOD"],
-                    {
-                        "api_id": SPORT_CMD[command_name],
-                        "parameter": parameters
-                    }
+                    {"api_id": SPORT_CMD[command_name], "parameter": parameters},
                 )
             else:
                 response = await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["SPORT_MOD"],
-                    {"api_id": SPORT_CMD[command_name]}
+                    RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD[command_name]}
                 )
 
-            if response['data']['header']['status']['code'] == 0:
+            if response["data"]["header"]["status"]["code"] == 0:
                 logger.info(f"Sport command {command_name} accepted")
                 await asyncio.sleep(2)  # Wait for command execution
                 return True
             else:
-                error_code = response['data']['header']['status']['code']
-                logger.error(f"Sport command {command_name} failed. Error code: {error_code}")
+                error_code = response["data"]["header"]["status"]["code"]
+                logger.error(
+                    f"Sport command {command_name} failed. Error code: {error_code}"
+                )
                 if error_code == 3203:
-                    logger.error("This command may not be available in current firmware or motion mode.")
+                    logger.error(
+                        "This command may not be available in current firmware or motion mode."
+                    )
                 return False
 
         except Exception as e:
@@ -459,16 +502,22 @@ class MotionController:
     async def handstand(self, enable: bool = True, verify: bool = True) -> bool:
         """
         Enable/disable handstand mode
-        
+
         WARNING: This command may not be available in current firmware.
         Previous versions required "ai" mode, which is no longer available.
         """
         try:
-            logger.warning("Handstand command may not be available in current firmware.")
-            logger.warning("This command previously required 'ai' mode, which has been removed.")
+            logger.warning(
+                "Handstand command may not be available in current firmware."
+            )
+            logger.warning(
+                "This command previously required 'ai' mode, which has been removed."
+            )
 
             logger.info(f"{'Enabling' if enable else 'Disabling'} handstand mode")
-            return await self.execute_sport_command("StandOut", {"data": enable}, verify)
+            return await self.execute_sport_command(
+                "StandOut", {"data": enable}, verify
+            )
 
         except Exception as e:
             logger.error(f"Error in handstand command: {e}")
@@ -498,11 +547,11 @@ class MotionController:
                     RTC_TOPIC["SPORT_MOD"],
                     {
                         "api_id": SPORT_CMD["Move"],
-                        "parameter": {"x": x, "y": y, "z": z}
-                    }
+                        "parameter": {"x": x, "y": y, "z": z},
+                    },
                 )
 
-                if response['data']['header']['status']['code'] == 0:
+                if response["data"]["header"]["status"]["code"] == 0:
                     self.is_moving = True
                     await asyncio.sleep(duration)
                     return True
@@ -513,10 +562,7 @@ class MotionController:
             elif command in SPORT_CMD:
                 # Handle sport commands
                 if parameters:
-                    payload = {
-                        "api_id": SPORT_CMD[command],
-                        "parameter": parameters
-                    }
+                    payload = {"api_id": SPORT_CMD[command], "parameter": parameters}
                 else:
                     payload = {"api_id": SPORT_CMD[command]}
 
@@ -524,16 +570,20 @@ class MotionController:
                     RTC_TOPIC["SPORT_MOD"], payload
                 )
 
-                if response['data']['header']['status']['code'] == 0:
+                if response["data"]["header"]["status"]["code"] == 0:
                     if command == "StopMove":
                         self.is_moving = False
 
                     # Brief pause for command execution
-                    await asyncio.sleep(0.5 if action.action_type == ActionType.EMERGENCY else 2.0)
+                    await asyncio.sleep(
+                        0.5 if action.action_type == ActionType.EMERGENCY else 2.0
+                    )
                     return True
                 else:
-                    error_code = response['data']['header']['status']['code']
-                    action.error_message = f"Command {command} failed with code {error_code}"
+                    error_code = response["data"]["header"]["status"]["code"]
+                    action.error_message = (
+                        f"Command {command} failed with code {error_code}"
+                    )
                     return False
             else:
                 action.error_message = f"Unknown command: {command}"
@@ -552,7 +602,9 @@ class MotionController:
             "available_commands": list(SPORT_CMD.keys()),
             "firmware_note": "Current firmware only supports 'mcf' mode. Legacy 'normal' and 'ai' modes are not available.",
             "safe_queue_enabled": self.use_action_queue,
-            "action_queue_status": self.action_queue.get_queue_status() if self.action_queue else None
+            "action_queue_status": self.action_queue.get_queue_status()
+            if self.action_queue
+            else None,
         }
 
         return status
@@ -567,12 +619,14 @@ class MotionController:
     async def front_flip(self, verify: bool = True) -> bool:
         """
         Execute front flip/somersault
-        
+
         WARNING: This command may not be available in current firmware.
         Previous versions required "ai" mode, which is no longer available.
         """
         try:
-            logger.warning("FrontFlip command may not be available in current firmware.")
+            logger.warning(
+                "FrontFlip command may not be available in current firmware."
+            )
             logger.info("Executing front flip command")
             return await self.execute_sport_command("FrontFlip", verify=verify)
         except Exception as e:
@@ -582,7 +636,7 @@ class MotionController:
     async def back_flip(self, verify: bool = True) -> bool:
         """
         Execute back flip/somersault
-        
+
         WARNING: This command may not be available in current firmware.
         """
         try:
@@ -596,7 +650,7 @@ class MotionController:
     async def left_flip(self, verify: bool = True) -> bool:
         """
         Execute left side flip
-        
+
         WARNING: This command may not be available in current firmware.
         """
         try:
@@ -610,11 +664,13 @@ class MotionController:
     async def right_flip(self, verify: bool = True) -> bool:
         """
         Execute right side flip
-        
+
         WARNING: This command may not be available in current firmware.
         """
         try:
-            logger.warning("RightFlip command may not be available in current firmware.")
+            logger.warning(
+                "RightFlip command may not be available in current firmware."
+            )
             logger.info("Executing right flip command")
             return await self.execute_sport_command("RightFlip", verify=verify)
         except Exception as e:
@@ -624,7 +680,7 @@ class MotionController:
     async def front_jump(self, verify: bool = True) -> bool:
         """
         Execute forward jump
-        
+
         This command has medium priority and may work in current firmware.
         """
         try:
@@ -637,7 +693,7 @@ class MotionController:
     async def front_pounce(self, verify: bool = True) -> bool:
         """
         Execute pouncing motion
-        
+
         This command has medium priority and may work in current firmware.
         """
         try:
@@ -650,13 +706,18 @@ class MotionController:
     async def test_advanced_movement_availability(self) -> dict[str, bool]:
         """
         Test which advanced movements are available in current firmware
-        
+
         Returns:
             Dictionary mapping command names to availability status
         """
         advanced_commands = [
-            "FrontFlip", "BackFlip", "LeftFlip", "RightFlip",
-            "FrontJump", "FrontPounce", "Handstand"
+            "FrontFlip",
+            "BackFlip",
+            "LeftFlip",
+            "RightFlip",
+            "FrontJump",
+            "FrontPounce",
+            "Handstand",
         ]
 
         availability = {}
@@ -667,16 +728,15 @@ class MotionController:
             try:
                 # Test command availability without executing
                 response = await self.conn.datachannel.pub_sub.publish_request_new(
-                    RTC_TOPIC["SPORT_MOD"],
-                    {"api_id": SPORT_CMD[command]}
+                    RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD[command]}
                 )
 
-                if response['data']['header']['status']['code'] == 0:
+                if response["data"]["header"]["status"]["code"] == 0:
                     availability[command] = True
                     logger.info(f"✅ {command} is available")
                 else:
                     availability[command] = False
-                    error_code = response['data']['header']['status']['code']
+                    error_code = response["data"]["header"]["status"]["code"]
                     logger.warning(f"❌ {command} not available (error {error_code})")
 
             except Exception as e:
@@ -692,37 +752,43 @@ class MotionController:
     async def damp(self, verify: bool = True) -> bool:
         """
         ⚠️ DANGER: DAMP COMMAND BLOCKED FOR SAFETY ⚠️
-        
+
         This command reduces robot leg stiffness causing immediate collapse and damage!
-        
+
         🚨 CRITICAL SAFETY ISSUE: The Damp command causes the robot's legs to lose
         stiffness, resulting in immediate collapse. This can cause severe damage to
         expensive robot hardware ($15k+ Go2 investment).
-        
+
         🛡️ ULTRA-SAFE PROTECTION: This method is automatically blocked by the safety
         system to prevent robot damage. The action queue will reject any Damp commands.
-        
+
         💡 SAFE ALTERNATIVES FOR STABILITY:
         - balance_stand(): Maintains leg stiffness while stabilizing
         - recovery_stand(): Safe recovery from unstable positions
         - stop(): Halt movement without reducing leg stiffness
-        
+
         Args:
             verify: Ignored - command always blocked regardless of verification
-            
+
         Returns:
             False: Always returns False as command is blocked for safety
         """
-        logger.critical("🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse!")
-        logger.critical("💡 MOTION CONTROLLER SAFETY: Protecting robot from dangerous leg stiffness reduction")
-        logger.info("✅ SAFE ALTERNATIVES: Use balance_stand() or recovery_stand() for stability")
+        logger.critical(
+            "🚨 DAMP COMMAND BLOCKED: This command causes robot leg collapse!"
+        )
+        logger.critical(
+            "💡 MOTION CONTROLLER SAFETY: Protecting robot from dangerous leg stiffness reduction"
+        )
+        logger.info(
+            "✅ SAFE ALTERNATIVES: Use balance_stand() or recovery_stand() for stability"
+        )
         logger.warning("⚠️  Ultra-safe protection active - preventing robot damage")
         return False
 
     async def balance_stand(self, verify: bool = True) -> bool:
         """
         Enter balanced standing position
-        
+
         This is the standard standing position and should work in all firmware modes.
         """
         try:
@@ -735,7 +801,7 @@ class MotionController:
     async def stand_up(self, verify: bool = True) -> bool:
         """
         Rise from lying position to standing
-        
+
         This is a fundamental command for getting the robot upright.
         """
         try:
@@ -748,7 +814,7 @@ class MotionController:
     async def stand_down(self, verify: bool = True) -> bool:
         """
         Lower to lying position from standing
-        
+
         This transitions the robot to a lying down position.
         """
         try:
@@ -761,7 +827,7 @@ class MotionController:
     async def recovery_stand(self, verify: bool = True) -> bool:
         """
         Execute recovery stand after fall or unstable position
-        
+
         This is a safety command to help robot recover from falls.
         """
         try:
@@ -774,7 +840,7 @@ class MotionController:
     async def sit(self, verify: bool = True) -> bool:
         """
         Transition to sitting position
-        
+
         This makes the robot sit down from standing position.
         """
         try:
@@ -787,7 +853,7 @@ class MotionController:
     async def rise_sit(self, verify: bool = True) -> bool:
         """
         Rise from sitting position to standing
-        
+
         This transitions the robot from sitting to standing position.
         """
         try:
@@ -797,19 +863,23 @@ class MotionController:
             logger.error(f"Error in rise sit: {e}")
             return False
 
-    async def move_basic(self, x: float = 0.3, y: float = 0, z: float = 0, verify: bool = True) -> bool:
+    async def move_basic(
+        self, x: float = 0.3, y: float = 0, z: float = 0, verify: bool = True
+    ) -> bool:
         """
         Execute basic movement with simple parameters
-        
+
         Args:
             x: Forward/backward movement (default: 0.3 for gentle forward)
-            y: Left/right movement 
+            y: Left/right movement
             z: Rotation/yaw
             verify: Whether to verify command execution
         """
         try:
             logger.info(f"Executing basic move command: x={x}, y={y}, z={z}")
-            return await self.execute_sport_command("Move", {"x": x, "y": y, "z": z}, verify=verify)
+            return await self.execute_sport_command(
+                "Move", {"x": x, "y": y, "z": z}, verify=verify
+            )
         except Exception as e:
             logger.error(f"Error in basic move: {e}")
             return False
@@ -817,13 +887,20 @@ class MotionController:
     async def test_basic_movement_availability(self) -> dict[str, bool]:
         """
         Test which basic movements are available in current firmware
-        
+
         Returns:
             Dictionary mapping command names to availability status
         """
         basic_commands = [
-            "Damp", "BalanceStand", "StopMove", "StandUp", "StandDown",
-            "RecoveryStand", "Move", "Sit", "RiseSit"
+            "Damp",
+            "BalanceStand",
+            "StopMove",
+            "StandUp",
+            "StandDown",
+            "RecoveryStand",
+            "Move",
+            "Sit",
+            "RiseSit",
         ]
 
         availability = {}
@@ -839,21 +916,20 @@ class MotionController:
                         RTC_TOPIC["SPORT_MOD"],
                         {
                             "api_id": SPORT_CMD[command],
-                            "parameter": {"x": 0.1, "y": 0, "z": 0}
-                        }
+                            "parameter": {"x": 0.1, "y": 0, "z": 0},
+                        },
                     )
                 else:
                     response = await self.conn.datachannel.pub_sub.publish_request_new(
-                        RTC_TOPIC["SPORT_MOD"],
-                        {"api_id": SPORT_CMD[command]}
+                        RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD[command]}
                     )
 
-                if response['data']['header']['status']['code'] == 0:
+                if response["data"]["header"]["status"]["code"] == 0:
                     availability[command] = True
                     logger.info(f"✅ {command} is available")
                 else:
                     availability[command] = False
-                    error_code = response['data']['header']['status']['code']
+                    error_code = response["data"]["header"]["status"]["code"]
                     logger.warning(f"❌ {command} not available (error {error_code})")
 
             except Exception as e:
@@ -876,23 +952,45 @@ class MotionController:
             "error_codes": {
                 "7004": "Motion mode switching restriction (normal/ai not available)",
                 "7002": "AI mode not available in current firmware",
-                "3203": "Command not available in current motion mode"
+                "3203": "Command not available in current motion mode",
             },
             "working_commands": [
-                "Move", "StopMove", "Hello", "Sit", "StandUp", "Dance1", "Dance2",
-                "Stretch", "BalanceStand", "RecoveryStand"
+                "Move",
+                "StopMove",
+                "Hello",
+                "Sit",
+                "StandUp",
+                "Dance1",
+                "Dance2",
+                "Stretch",
+                "BalanceStand",
+                "RecoveryStand",
             ],
             "potentially_restricted_commands": [
-                "Handstand", "BackFlip", "FrontFlip", "LeftFlip", "RightFlip",
-                "StandOut", "FrontJump", "FrontPounce"
+                "Handstand",
+                "BackFlip",
+                "FrontFlip",
+                "LeftFlip",
+                "RightFlip",
+                "StandOut",
+                "FrontJump",
+                "FrontPounce",
             ],
             "advanced_movements": {
                 "FrontFlip": {"id": 1030, "risk": "High", "firmware_dependent": True},
                 "BackFlip": {"id": 1044, "risk": "High", "firmware_dependent": True},
                 "LeftFlip": {"id": 1042, "risk": "High", "firmware_dependent": True},
                 "RightFlip": {"id": 1043, "risk": "High", "firmware_dependent": True},
-                "FrontJump": {"id": 1031, "risk": "Medium", "firmware_dependent": False},
-                "FrontPounce": {"id": 1032, "risk": "Medium", "firmware_dependent": False},
-                "Handstand": {"id": 1301, "risk": "High", "firmware_dependent": True}
-            }
+                "FrontJump": {
+                    "id": 1031,
+                    "risk": "Medium",
+                    "firmware_dependent": False,
+                },
+                "FrontPounce": {
+                    "id": 1032,
+                    "risk": "Medium",
+                    "firmware_dependent": False,
+                },
+                "Handstand": {"id": 1301, "risk": "High", "firmware_dependent": True},
+            },
         }

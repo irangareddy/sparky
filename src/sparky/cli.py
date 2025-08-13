@@ -13,16 +13,18 @@ def _missing_cli_deps_msg():
         "  pip install 'go2-sparky[cli]'"
     )
 
+
 try:
     import typer
-    from rich import print as rprint
     from rich.console import Console
     from rich.panel import Panel
     from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.table import Table
 except ImportError:
+
     def app():
         import sys
+
         sys.exit(_missing_cli_deps_msg())
 else:
     from sparky.core.connection import (
@@ -38,7 +40,7 @@ else:
         name="sparky",
         help="Sparky - Go2 Robot Control Interface",
         add_completion=False,
-        rich_markup_mode="rich"
+        rich_markup_mode="rich",
     )
 
     # Rich console for beautiful output
@@ -62,7 +64,7 @@ else:
             "Legacy 'normal' and 'ai' modes are no longer available.\n"
             "Some advanced commands may not work.",
             title="[bold yellow]Important[/bold yellow]",
-            border_style="yellow"
+            border_style="yellow",
         )
         console.print(warning)
 
@@ -84,11 +86,22 @@ else:
 
     @app.command()
     def status(
-        connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type: localap, localsta, remote"),
-        ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address (for localsta)"),
+        connection_type: str = typer.Option(
+            "localap",
+            "--connection",
+            "-c",
+            help="Connection type: localap, localsta, remote",
+        ),
+        ip: str | None = typer.Option(
+            None, "--ip", "-i", help="Robot IP address (for localsta)"
+        ),
         serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
-        username: str | None = typer.Option(None, "--username", "-u", help="Username (for remote)"),
-        password: str | None = typer.Option(None, "--password", "-p", help="Password (for remote)")
+        username: str | None = typer.Option(
+            None, "--username", "-u", help="Username (for remote)"
+        ),
+        password: str | None = typer.Option(
+            None, "--password", "-p", help="Password (for remote)"
+        ),
     ):
         """Get robot status and firmware information"""
         print_banner()
@@ -101,7 +114,9 @@ else:
                     connection = await create_local_ap_connection()
                 elif connection_type == "localsta":
                     if not ip and not serial:
-                        console.print("[red]Error: IP or serial number required for localsta connection[/red]")
+                        console.print(
+                            "[red]Error: IP or serial number required for localsta connection[/red]"
+                        )
                         return
                     if ip:
                         connection = await create_local_sta_connection(ip)
@@ -109,17 +124,23 @@ else:
                         connection = await create_local_sta_connection_by_serial(serial)
                 elif connection_type == "remote":
                     if not all([serial, username, password]):
-                        console.print("[red]Error: Serial, username, and password required for remote connection[/red]")
+                        console.print(
+                            "[red]Error: Serial, username, and password required for remote connection[/red]"
+                        )
                         return
-                    connection = await create_remote_connection(serial, username, password)
+                    connection = await create_remote_connection(
+                        serial, username, password
+                    )
                 else:
-                    console.print(f"[red]Error: Unknown connection type '{connection_type}'[/red]")
+                    console.print(
+                        f"[red]Error: Unknown connection type '{connection_type}'[/red]"
+                    )
                     return
 
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
-                    console=console
+                    console=console,
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
 
@@ -148,7 +169,9 @@ else:
                 status_table.add_row("Connection Status", " Connected")
                 status_table.add_row("Motion Mode", motion_mode or "Unknown")
                 status_table.add_row("Is Moving", str(status_info["is_moving"]))
-                status_table.add_row("Available Commands", str(len(status_info["available_commands"])))
+                status_table.add_row(
+                    "Available Commands", str(len(status_info["available_commands"]))
+                )
 
                 console.print(status_table)
 
@@ -157,10 +180,19 @@ else:
                 compat_table.add_column("Category", style="cyan")
                 compat_table.add_column("Status", style="green")
 
-                compat_table.add_row("Supported Modes", ", ".join(compatibility["supported_modes"]))
-                compat_table.add_row("Unsupported Modes", ", ".join(compatibility["unsupported_modes"]))
-                compat_table.add_row("Working Commands", str(len(compatibility["working_commands"])))
-                compat_table.add_row("Restricted Commands", str(len(compatibility["potentially_restricted_commands"])))
+                compat_table.add_row(
+                    "Supported Modes", ", ".join(compatibility["supported_modes"])
+                )
+                compat_table.add_row(
+                    "Unsupported Modes", ", ".join(compatibility["unsupported_modes"])
+                )
+                compat_table.add_row(
+                    "Working Commands", str(len(compatibility["working_commands"]))
+                )
+                compat_table.add_row(
+                    "Restricted Commands",
+                    str(len(compatibility["potentially_restricted_commands"])),
+                )
 
                 console.print(compat_table)
 
@@ -173,13 +205,24 @@ else:
 
     @app.command()
     def move(
-        direction: str = typer.Argument(..., help="Movement direction: forward, backward, left, right, turn-left, turn-right"),
-        speed: float = typer.Option(0.5, "--speed", "-s", help="Movement speed (0.1 to 1.0)"),
-        duration: float = typer.Option(3.0, "--duration", "-d", help="Movement duration in seconds"),
-        connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type"),
+        direction: str = typer.Argument(
+            ...,
+            help="Movement direction: forward, backward, left, right, turn-left, turn-right",
+        ),
+        speed: float = typer.Option(
+            0.5, "--speed", "-s", help="Movement speed (0.1 to 1.0)"
+        ),
+        duration: float = typer.Option(
+            3.0, "--duration", "-d", help="Movement duration in seconds"
+        ),
+        connection_type: str = typer.Option(
+            "localap", "--connection", "-c", help="Connection type"
+        ),
         ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address"),
         serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
-        no_verify: bool = typer.Option(False, "--no-verify", help="Disable movement verification")
+        no_verify: bool = typer.Option(
+            False, "--no-verify", help="Disable movement verification"
+        ),
     ):
         """Move the robot in a specific direction"""
         print_banner()
@@ -191,17 +234,21 @@ else:
                     connection = await create_local_ap_connection()
                 elif connection_type == "localsta":
                     if not ip:
-                        console.print("[red]Error: IP address required for localsta connection[/red]")
+                        console.print(
+                            "[red]Error: IP address required for localsta connection[/red]"
+                        )
                         return
                     connection = await create_local_sta_connection(ip)
                 else:
-                    console.print(f"[red]Error: Unsupported connection type '{connection_type}'[/red]")
+                    console.print(
+                        f"[red]Error: Unsupported connection type '{connection_type}'[/red]"
+                    )
                     return
 
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
-                    console=console
+                    console=console,
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
 
@@ -217,29 +264,49 @@ else:
                     # Execute movement based on direction
                     success = False
                     if direction == "forward":
-                        success = await motion.move_forward(speed, duration, verify=not no_verify)
+                        success = await motion.move_forward(
+                            speed, duration, verify=not no_verify
+                        )
                     elif direction == "backward":
-                        success = await motion.move_backward(speed, duration, verify=not no_verify)
+                        success = await motion.move_backward(
+                            speed, duration, verify=not no_verify
+                        )
                     elif direction == "left":
-                        success = await motion.move_left(speed, duration, verify=not no_verify)
+                        success = await motion.move_left(
+                            speed, duration, verify=not no_verify
+                        )
                     elif direction == "right":
-                        success = await motion.move_right(speed, duration, verify=not no_verify)
+                        success = await motion.move_right(
+                            speed, duration, verify=not no_verify
+                        )
                     elif direction == "turn-left":
-                        success = await motion.turn_left(speed, duration, verify=not no_verify)
+                        success = await motion.turn_left(
+                            speed, duration, verify=not no_verify
+                        )
                     elif direction == "turn-right":
-                        success = await motion.turn_right(speed, duration, verify=not no_verify)
+                        success = await motion.turn_right(
+                            speed, duration, verify=not no_verify
+                        )
                     else:
-                        console.print(f"[red]Error: Unknown direction '{direction}'[/red]")
+                        console.print(
+                            f"[red]Error: Unknown direction '{direction}'[/red]"
+                        )
                         return
 
                     progress.update(task, description="Movement completed!")
 
                 if success:
                     if no_verify:
-                        console.print(f"[green] Move command accepted for {direction}[/green]")
-                        console.print("[yellow]WARNING: Movement verification disabled - robot may not have actually moved[/yellow]")
+                        console.print(
+                            f"[green] Move command accepted for {direction}[/green]"
+                        )
+                        console.print(
+                            "[yellow]WARNING: Movement verification disabled - robot may not have actually moved[/yellow]"
+                        )
                     else:
-                        console.print(f"[green] Successfully moved {direction} for {duration} seconds[/green]")
+                        console.print(
+                            f"[green] Successfully moved {direction} for {duration} seconds[/green]"
+                        )
                 else:
                     console.print(f"[red]FAILED to move {direction}[/red]")
 
@@ -252,11 +319,18 @@ else:
 
     @app.command()
     def command(
-        cmd: str = typer.Argument(..., help="Sport command to execute: hello, sit, standup, dance1, dance2, etc."),
-        connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type"),
+        cmd: str = typer.Argument(
+            ...,
+            help="Sport command to execute: hello, sit, standup, dance1, dance2, etc.",
+        ),
+        connection_type: str = typer.Option(
+            "localap", "--connection", "-c", help="Connection type"
+        ),
         ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address"),
         serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
-        no_verify: bool = typer.Option(False, "--no-verify", help="Disable command execution verification")
+        no_verify: bool = typer.Option(
+            False, "--no-verify", help="Disable command execution verification"
+        ),
     ):
         """Execute a sport command on the robot"""
         print_banner()
@@ -268,17 +342,21 @@ else:
                     connection = await create_local_ap_connection()
                 elif connection_type == "localsta":
                     if not ip:
-                        console.print("[red]Error: IP address required for localsta connection[/red]")
+                        console.print(
+                            "[red]Error: IP address required for localsta connection[/red]"
+                        )
                         return
                     connection = await create_local_sta_connection(ip)
                 else:
-                    console.print(f"[red]Error: Unsupported connection type '{connection_type}'[/red]")
+                    console.print(
+                        f"[red]Error: Unsupported connection type '{connection_type}'[/red]"
+                    )
                     return
 
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
-                    console=console
+                    console=console,
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
 
@@ -292,19 +370,27 @@ else:
                     motion = MotionController(connection.conn)
 
                     # Execute command
-                    success = await motion.execute_sport_command(cmd.title(), verify=not no_verify)
+                    success = await motion.execute_sport_command(
+                        cmd.title(), verify=not no_verify
+                    )
 
                     progress.update(task, description="Command completed!")
 
                 if success:
                     if no_verify:
                         console.print(f"[green] Command '{cmd}' accepted[/green]")
-                        console.print("[yellow]WARNING: Execution verification disabled - command may not have actually executed[/yellow]")
+                        console.print(
+                            "[yellow]WARNING: Execution verification disabled - command may not have actually executed[/yellow]"
+                        )
                     else:
-                        console.print(f"[green] Successfully executed '{cmd}' command[/green]")
+                        console.print(
+                            f"[green] Successfully executed '{cmd}' command[/green]"
+                        )
                 else:
                     console.print(f"[red]FAILED to execute '{cmd}' command[/red]")
-                    console.print("[yellow]This command may not be available in current firmware[/yellow]")
+                    console.print(
+                        "[yellow]This command may not be available in current firmware[/yellow]"
+                    )
 
                 await connection.disconnect()
 
@@ -316,10 +402,14 @@ else:
     @app.command()
     def pattern(
         pattern_name: str = typer.Argument(..., help="Movement pattern: square, spin"),
-        connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type"),
+        connection_type: str = typer.Option(
+            "localap", "--connection", "-c", help="Connection type"
+        ),
         ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address"),
         serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
-        no_verify: bool = typer.Option(False, "--no-verify", help="Disable movement verification")
+        no_verify: bool = typer.Option(
+            False, "--no-verify", help="Disable movement verification"
+        ),
     ):
         """Execute a movement pattern"""
         print_banner()
@@ -331,17 +421,21 @@ else:
                     connection = await create_local_ap_connection()
                 elif connection_type == "localsta":
                     if not ip:
-                        console.print("[red]Error: IP address required for localsta connection[/red]")
+                        console.print(
+                            "[red]Error: IP address required for localsta connection[/red]"
+                        )
                         return
                     connection = await create_local_sta_connection(ip)
                 else:
-                    console.print(f"[red]Error: Unsupported connection type '{connection_type}'[/red]")
+                    console.print(
+                        f"[red]Error: Unsupported connection type '{connection_type}'[/red]"
+                    )
                     return
 
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
-                    console=console
+                    console=console,
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
 
@@ -349,7 +443,9 @@ else:
                         console.print("[red]Failed to connect to robot[/red]")
                         return
 
-                    progress.update(task, description=f"Executing {pattern_name} pattern...")
+                    progress.update(
+                        task, description=f"Executing {pattern_name} pattern..."
+                    )
 
                     # Create motion controller
                     motion = MotionController(connection.conn)
@@ -361,19 +457,29 @@ else:
                     elif pattern_name == "spin":
                         success = await motion.spin_360("right", verify=not no_verify)
                     else:
-                        console.print(f"[red]Error: Unknown pattern '{pattern_name}'[/red]")
+                        console.print(
+                            f"[red]Error: Unknown pattern '{pattern_name}'[/red]"
+                        )
                         return
 
                     progress.update(task, description="Pattern completed!")
 
                 if success:
                     if no_verify:
-                        console.print(f"[green] Pattern '{pattern_name}' commands accepted[/green]")
-                        console.print("[yellow]WARNING: Movement verification disabled - pattern may not have actually executed[/yellow]")
+                        console.print(
+                            f"[green] Pattern '{pattern_name}' commands accepted[/green]"
+                        )
+                        console.print(
+                            "[yellow]WARNING: Movement verification disabled - pattern may not have actually executed[/yellow]"
+                        )
                     else:
-                        console.print(f"[green] Successfully executed '{pattern_name}' pattern[/green]")
+                        console.print(
+                            f"[green] Successfully executed '{pattern_name}' pattern[/green]"
+                        )
                 else:
-                    console.print(f"[red]FAILED to execute '{pattern_name}' pattern[/red]")
+                    console.print(
+                        f"[red]FAILED to execute '{pattern_name}' pattern[/red]"
+                    )
 
                 await connection.disconnect()
 
@@ -384,15 +490,19 @@ else:
 
     @app.command()
     def test(
-        connection_type: str = typer.Option("localap", "--connection", "-c", help="Connection type"),
+        connection_type: str = typer.Option(
+            "localap", "--connection", "-c", help="Connection type"
+        ),
         ip: str | None = typer.Option(None, "--ip", "-i", help="Robot IP address"),
-        serial: str | None = typer.Option(None, "--serial", help="Robot serial number")
+        serial: str | None = typer.Option(None, "--serial", help="Robot serial number"),
     ):
         """Run comprehensive firmware compatibility test"""
         print_banner()
         print_firmware_warning()
 
-        console.print("[yellow]This will run a comprehensive test of all available commands.[/yellow]")
+        console.print(
+            "[yellow]This will run a comprehensive test of all available commands.[/yellow]"
+        )
         if not typer.confirm("Continue?"):
             return
 
@@ -403,17 +513,21 @@ else:
                     connection = await create_local_ap_connection()
                 elif connection_type == "localsta":
                     if not ip:
-                        console.print("[red]Error: IP address required for localsta connection[/red]")
+                        console.print(
+                            "[red]Error: IP address required for localsta connection[/red]"
+                        )
                         return
                     connection = await create_local_sta_connection(ip)
                 else:
-                    console.print(f"[red]Error: Unsupported connection type '{connection_type}'[/red]")
+                    console.print(
+                        f"[red]Error: Unsupported connection type '{connection_type}'[/red]"
+                    )
                     return
 
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
-                    console=console
+                    console=console,
                 ) as progress:
                     task = progress.add_task("Connecting to robot...", total=None)
 
@@ -437,13 +551,33 @@ else:
                 results_table.add_column("Status", style="green")
                 results_table.add_column("Details", style="yellow")
 
-                results_table.add_row("Connection", " Success", "Connected successfully")
+                results_table.add_row(
+                    "Connection", " Success", "Connected successfully"
+                )
                 results_table.add_row("Motion Mode", " mcf", "Current firmware mode")
-                results_table.add_row("Basic Movements", " Available", "Forward, backward, left, right, turns")
-                results_table.add_row("Core Commands", " Available", f"{len(compatibility['working_commands'])} commands")
-                results_table.add_row("Advanced Commands", "LIMITED", f"{len(compatibility['potentially_restricted_commands'])} may be restricted")
-                results_table.add_row("Mode Switching", "NOT AVAILABLE", "normal/ai modes removed")
-                results_table.add_row("Movement Verification", " Available", "Sensor-based movement detection")
+                results_table.add_row(
+                    "Basic Movements",
+                    " Available",
+                    "Forward, backward, left, right, turns",
+                )
+                results_table.add_row(
+                    "Core Commands",
+                    " Available",
+                    f"{len(compatibility['working_commands'])} commands",
+                )
+                results_table.add_row(
+                    "Advanced Commands",
+                    "LIMITED",
+                    f"{len(compatibility['potentially_restricted_commands'])} may be restricted",
+                )
+                results_table.add_row(
+                    "Mode Switching", "NOT AVAILABLE", "normal/ai modes removed"
+                )
+                results_table.add_row(
+                    "Movement Verification",
+                    " Available",
+                    "Sensor-based movement detection",
+                )
 
                 console.print(results_table)
 
@@ -486,7 +620,10 @@ else:
         console.print(working_table)
         console.print(restricted_table)
 
-        console.print("\n[dim]Note: Commands marked as 'restricted' may not work in current firmware.[/dim]")
+        console.print(
+            "\n[dim]Note: Commands marked as 'restricted' may not work in current firmware.[/dim]"
+        )
+
 
 if __name__ == "__main__":
     app()
