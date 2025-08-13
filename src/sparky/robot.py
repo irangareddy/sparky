@@ -242,6 +242,15 @@ class Robot(RobotInterface):
         if self.stream_processor:
             status["metrics"] = self.stream_processor.get_current_metrics()
         
+        # Add safety and queue status
+        if self.safety_manager:
+            status["safety"] = self.safety_manager.get_safety_status()
+        
+        if self.motion:
+            queue_status = self.motion.get_queue_status()
+            if queue_status:
+                status["action_queue"] = queue_status
+        
         return status
     
     async def start_data_stream(self, buffer_size: int = 1000, analytics: bool = True) -> None:
@@ -316,6 +325,82 @@ class Robot(RobotInterface):
         except Exception as e:
             logger.error(f"Error exporting data: {e}")
             raise
+    
+    async def _start_safety_systems(self):
+        """Start all safety systems"""
+        try:
+            # Start safety manager monitoring
+            if self.safety_manager:
+                await self.safety_manager.start_monitoring()
+                logger.info("🛡️ Safety monitoring started")
+            
+            # Start action queue if enabled
+            if self.motion and self.enable_safety_queue:
+                await self.motion.start_action_queue()
+                logger.info("🛡️ Ultra-safe action queue started")
+            
+        except Exception as e:
+            logger.error(f"Error starting safety systems: {e}")
+    
+    async def _stop_safety_systems(self):
+        """Stop all safety systems"""
+        try:
+            # Stop action queue
+            if self.motion:
+                await self.motion.stop_action_queue()
+            
+            # Stop safety manager
+            if self.safety_manager:
+                await self.safety_manager.stop_monitoring()
+            
+            logger.info("Safety systems stopped")
+            
+        except Exception as e:
+            logger.error(f"Error stopping safety systems: {e}")
+    
+    async def emergency_stop(self, reason: str = "User requested emergency stop") -> bool:
+        """Ultra-safe emergency stop - highest priority"""
+        logger.critical(f"🛑 EMERGENCY STOP: {reason}")
+        
+        try:
+            # Stop via safety manager if available
+            if self.safety_manager:
+                await self.safety_manager.emergency_stop(reason)
+            
+            # Stop via motion controller
+            if self.motion:
+                await self.motion.emergency_stop_all(reason)
+            
+            logger.critical("Emergency stop completed")
+            return True
+            
+        except Exception as e:
+            logger.critical(f"Emergency stop failed: {e}")
+            return False
+    
+    def get_safety_status(self) -> Dict[str, Any]:
+        """Get comprehensive safety status"""
+        if self.safety_manager:
+            return self.safety_manager.get_safety_status()
+        return {"safety_manager": "not_available"}
+    
+    def get_queue_status(self) -> Optional[Dict[str, Any]]:
+        """Get action queue status"""
+        if self.motion:
+            return self.motion.get_queue_status()
+        return None
+    
+    async def pause_queue(self):
+        """Pause the action queue (emergency actions still execute)"""
+        if self.motion and self.motion.action_queue:
+            await self.motion.action_queue.pause()
+            logger.warning("⏸️ Action queue paused - only emergency actions will execute")
+    
+    async def resume_queue(self):
+        """Resume the action queue"""
+        if self.motion and self.motion.action_queue:
+            await self.motion.action_queue.resume()
+            logger.info("▶️ Action queue resumed")
     
     # Convenience methods for common operations
     
@@ -482,6 +567,121 @@ class Robot(RobotInterface):
             logger.error(f"Error testing advanced movements: {e}")
             return {}
     
+    # Basic Movement Methods
+    async def damp(self) -> bool:
+        """
+        Enable damping mode - reduces robot stiffness for safety
+        
+        This is a high-priority basic command that should work in all firmware modes.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.damp()
+        except Exception as e:
+            logger.error(f"Error executing damp: {e}")
+            return False
+    
+    async def balance_stand(self) -> bool:
+        """
+        Enter balanced standing position
+        
+        This is the standard standing position and should work in all firmware modes.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.balance_stand()
+        except Exception as e:
+            logger.error(f"Error executing balance stand: {e}")
+            return False
+    
+    async def recovery_stand(self) -> bool:
+        """
+        Execute recovery stand after fall or unstable position
+        
+        This is a safety command to help robot recover from falls.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            # Recovery commands get high priority for safety
+            from .core.action_queue import ActionPriority
+            return await self.motion.execute_sport_command(
+                "RecoveryStand", 
+                priority=ActionPriority.HIGH
+            )
+        except Exception as e:
+            logger.error(f"Error executing recovery stand: {e}")
+            return False
+    
+    async def stand_down(self) -> bool:
+        """
+        Lower to lying position from standing
+        
+        This transitions the robot to a lying down position.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.stand_down()
+        except Exception as e:
+            logger.error(f"Error executing stand down: {e}")
+            return False
+    
+    async def rise_sit(self) -> bool:
+        """
+        Rise from sitting position to standing
+        
+        This transitions the robot from sitting to standing position.
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.rise_sit()
+        except Exception as e:
+            logger.error(f"Error executing rise sit: {e}")
+            return False
+    
+    async def move_basic(self, x: float = 0.3, y: float = 0, z: float = 0) -> bool:
+        """
+        Execute basic movement with simple parameters
+        
+        Args:
+            x: Forward/backward movement (default: 0.3 for gentle forward)
+            y: Left/right movement 
+            z: Rotation/yaw
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return False
+        try:
+            return await self.motion.move_basic(x, y, z)
+        except Exception as e:
+            logger.error(f"Error executing basic move: {e}")
+            return False
+    
+    async def test_basic_movements(self) -> Dict[str, bool]:
+        """
+        Test which basic movements are available
+        
+        Returns:
+            Dictionary mapping command names to availability status
+        """
+        if not self.motion:
+            logger.error("Not connected to robot")
+            return {}
+        try:
+            return await self.motion.test_basic_movement_availability()
+        except Exception as e:
+            logger.error(f"Error testing basic movements: {e}")
+            return {}
+    
     # Context manager support
     async def __aenter__(self):
         """Async context manager entry"""
@@ -508,3 +708,4 @@ async def connect_robot(method: ConnectionMethod = ConnectionMethod.LOCALAP, **k
     if not success:
         raise RuntimeError("Failed to connect to robot")
     return robot
+
